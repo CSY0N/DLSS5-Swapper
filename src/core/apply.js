@@ -569,6 +569,25 @@ async function applyFeeder(config, log) {
     );
   }
 
+  // A Vulkan game reaches the helper through the KHR external-interop
+  // extensions. Some drivers and emulators do not expose them, and the
+  // install then looks perfect and does nothing at all. Feeder ships a loader
+  // layer that turns them on for a single launch, so it is placed beside the
+  // game with its launcher: no registry key, nothing global, and Restore
+  // originals takes it away again.
+  if (api === 'vulkan') {
+    const layerRoot = bitness === 32 ? source.feeder.feedLayer32 : source.feeder.feedLayer64;
+    let layerFiles = [];
+    try { layerFiles = fs.readdirSync(layerRoot); } catch { layerFiles = []; }
+    const layerDir = path.join(exeDir, 'dlss5-feed-vk-layer');
+    for (const name of layerFiles) {
+      await copyTracked(manifest, gameDir, path.join(layerRoot, name), path.join(layerDir, name), { kind: 'feeder' });
+    }
+    if (layerFiles.length) {
+      const launcher = layerFiles.find(name => name.toLowerCase().endsWith('.bat'));
+      log('feedVkLayerReady', { rel: path.relative(gameDir, path.join(layerDir, launcher || '')) });
+    }
+  }
   await enableAddonInIni(exeDir, bitness === 32 ? 'dlss5-feed.addon32' : 'dlss5-feed.addon64', log, gameDir, manifest);
   await enableAddonInIni(hostDir, 'renodx-dlss5.addon64', log, gameDir, manifest);
   await saveActiveManifest(gameDir, manifest);

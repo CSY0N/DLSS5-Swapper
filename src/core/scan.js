@@ -591,7 +591,11 @@ function scanSource(sourceDir) {
     shaderRoot: path.join(feederDir, 'reshade-shaders'),
     hostAddon: path.join(feederDir, 'host64', 'renodx-dlss5.addon64'),
     dgVoodooDir: path.join(feederDir, 'dgvoodoo'),
-    vulkanLayerDir: path.join(sourceDir, 'reshade-vulkan')
+    vulkanLayerDir: path.join(sourceDir, 'reshade-vulkan'),
+    // Feeder's interop layer, one folder per architecture, copied beside a
+    // Vulkan game so it can be launched with the layer when needed.
+    feedLayer64: path.join(feederDir, 'layer-x64'),
+    feedLayer32: path.join(feederDir, 'layer-x86')
   };
   feeder.releaseVerified = Object.entries(feederRelease.hashes).every(([rel, expected]) => {
     try {

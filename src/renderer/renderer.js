@@ -1161,7 +1161,7 @@ document.addEventListener('keydown', (e) => {
 });
 // Most job events are progress markers read as codes. The few that are
 // advice for the person are shown in their language instead.
-const SPOKEN_JOB_CODES = new Set(['historySaveWarning', 'driverNeuralFault']);
+const SPOKEN_JOB_CODES = new Set(['historySaveWarning', 'driverNeuralFault', 'feedVkLayerReady']);
 window.lab.onJob((e) => jobLog(SPOKEN_JOB_CODES.has(e.code)
   ? t(e.code, ...Object.values(e.params || {}))
   : `${e.code} ${JSON.stringify(e.params)}`));
