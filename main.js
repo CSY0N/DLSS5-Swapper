@@ -195,20 +195,35 @@ const keyFor = (dir) => crypto.createHash('sha1').update(path.resolve(dir).toLow
 // kept forever merely because the folder was scanned by an earlier release.
 const SCAN_RULES = 6;
 
-function loadState() {
+// One live object, not a fresh snapshot per call. Every handler used to parse
+// the file, hold that copy across an await, and write the whole thing back:
+// two scans running at once each wrote their own stale copy, and whichever
+// finished last silently dropped the other's result. Sharing the object means
+// every write carries everything already known.
+let liveState = null;
+
+function readState() {
   try {
-    return JSON.parse(fs.readFileSync(stateFile(), 'utf8'));
-  } catch {
-    // Nothing seeded: the drive sweep finds game libraries on its own, and a
-    // path from the machine this was written on means nothing anywhere else.
-    return { folders: [], excludedRoots: [], manual: [], posters: {}, hidden: [], scans: {} };
-  }
+    const value = JSON.parse(fs.readFileSync(stateFile(), 'utf8'));
+    if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  } catch { /* absent or unreadable: start from the defaults below */ }
+  // Nothing seeded: the drive sweep finds game libraries on its own, and a
+  // path from the machine this was written on means nothing anywhere else.
+  return { folders: [], excludedRoots: [], manual: [], posters: {}, hidden: [], scans: {} };
+}
+
+function loadState() {
+  if (!liveState) liveState = readState();
+  return liveState;
 }
 
 function saveState(state) {
+  // A handler that built its own object still becomes the live one, so a caller
+  // that does not go through loadState() cannot resurrect the old race.
+  if (state && state !== liveState) liveState = state;
   try {
     fs.mkdirSync(path.dirname(stateFile()), { recursive: true });
-    fs.writeFileSync(stateFile(), JSON.stringify(state, null, 2), 'utf8');
+    fs.writeFileSync(stateFile(), JSON.stringify(liveState, null, 2), 'utf8');
     return true;
   } catch { return false; }
 }
@@ -766,6 +781,7 @@ ipcMain.handle('art-fetch', async (_event, dir, name, appid) => {
 // ---------- installing ----------
 
 ipcMain.handle('details', async (_event, dir) => {
+  const detailsPayload = payload();
   const scan = await scanGame(dir);
   const state = loadState();
   const hasNativeDlss = installRoutes.nativeDlssPresent(scan);
@@ -808,7 +824,7 @@ ipcMain.handle('details', async (_event, dir) => {
     addon: scan.addonPresent,
     reshade: scan.reshade,
     hasBackup: scan.hasBackup || fs.existsSync(journal.pendingPath(dir)),
-    newDlss: (payload() || {}).source ? payload().source.dlssVersion : null
+    newDlss: detailsPayload && detailsPayload.source ? detailsPayload.source.dlssVersion : null
   };
 });
 
