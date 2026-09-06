@@ -16,6 +16,10 @@ const { backupRoot, saveActiveManifest, writeTracked } = require('./src/core/app
 const { scanSource } = require('./src/core/scan.js');
 const pe = require('./src/core/pe.js');
 const { ensureLumenite, ensureDgVoodoo, missingVCRuntime } = require('./src/core/runtime-components.js');
+// A component that downloaded and verified, then vanished before it could be
+// used, is a security tool quarantining it - never the connection. Saying
+// "check your connection" there sends people after the wrong thing.
+const componentCode = (error, fallback) => (error && error.code === 'componentRemoved' ? 'componentQuarantined' : fallback);
 const installRoutes = require('./src/shared/install-routes');
 const renderingApi = require('./src/shared/rendering-api');
 const { projectUrl } = require('./src/core/project-links');
@@ -907,7 +911,7 @@ ipcMain.handle('install', (event, dir, exePath, requestedRoute, requestedApi) =>
     if (missing.length) return { ok: false, code: 'runtimeRequiredHint', message: missing.join(', ') };
     send({ code: 'optiDownloading', params: {} });
     try { optiRoot = await optiscaler.ensureOptiScaler(app.getPath('userData')); }
-    catch (err) { return { ok: false, code: 'errOptiDownload', message: err.message }; }
+    catch (err) { return { ok: false, code: componentCode(err, 'errOptiDownload'), message: err.message }; }
     send({ code: 'optiVerified', params: { version: optiscaler.RELEASE.version } });
   }
 
@@ -937,7 +941,7 @@ ipcMain.handle('install', (event, dir, exePath, requestedRoute, requestedApi) =>
         p.source.feeder.dgVoodooDir = await ensureDgVoodoo(app.getPath('userData'));
         send({ code: 'legacyWrapperReady', params: { api, bitness: target.bitness } });
       } catch (error) {
-        return { ok: false, code: 'legacyDownloadHint', message: error.message };
+        return { ok: false, code: componentCode(error, 'legacyDownloadHint'), message: error.message };
       }
     }
   }

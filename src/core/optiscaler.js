@@ -5,7 +5,7 @@ const path = require('path');
 const extractZip = require('extract-zip');
 const pe = require('./pe');
 const ini = require('./feeder-config');
-const { download, digest } = require('./runtime-components');
+const { cached, fetchVerified } = require('./runtime-components');
 const { safePath } = require('./file-journal');
 const RELEASE = Object.freeze({
   version: '0.2.0-patch1',
@@ -33,14 +33,12 @@ function validatePayload(root) {
 async function ensureOptiScaler(cacheRoot) {
   const base = path.join(path.resolve(cacheRoot), 'components', `OptiScaler-${RELEASE.version}`);
   const archive = base + '.zip';
-  if (!fs.existsSync(archive) || digest(archive) !== RELEASE.sha256) await download(RELEASE.url, archive);
-  if (digest(archive) !== RELEASE.sha256) throw fail('errOptiPayload');
+  if (!cached(archive, RELEASE.sha256)) await fetchVerified(RELEASE.url, RELEASE.sha256, archive);
   // Re-extract verified bytes on every install. The installer below copies an
   // explicit file list, not unknown files that may have appeared in the cache.
   await extractZip(archive, { dir: base });
   const license = path.join(base, 'OptiScaler-GPL-3.0.txt');
-  if (!fs.existsSync(license) || digest(license) !== RELEASE.licenseHash) await download(RELEASE.licenseUrl, license);
-  if (digest(license) !== RELEASE.licenseHash) throw fail('errOptiPayload');
+  if (!cached(license, RELEASE.licenseHash)) await fetchVerified(RELEASE.licenseUrl, RELEASE.licenseHash, license);
   validatePayload(base);
   return base;
 }

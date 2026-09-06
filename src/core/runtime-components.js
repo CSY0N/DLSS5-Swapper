@@ -18,8 +18,7 @@ const DGVOODOO = {
 async function ensureDgVoodoo(cacheRoot) {
   const base = path.join(path.resolve(cacheRoot), 'components', `dgVoodoo2-${DGVOODOO.version}`);
   const archive = base + '.zip';
-  if (!fs.existsSync(archive) || digest(archive) !== DGVOODOO.sha256) await download(DGVOODOO.url, archive);
-  if (digest(archive) !== DGVOODOO.sha256) throw new Error('dgVoodoo2 SHA-256 verification failed');
+  if (!cached(archive, DGVOODOO.sha256)) await fetchVerified(DGVOODOO.url, DGVOODOO.sha256, archive);
   // Re-extract the verified archive, never trust previously cached loose DLLs.
   await extractZip(archive, { dir: base });
   return base;
@@ -46,17 +45,58 @@ function digest(file) {
   return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 }
 
-async function download(url, file) {
+// A cached component counts only when it is still on disk and still the pinned
+// bytes; an unreadable or removed file simply means "download it again".
+function cached(file, expected) {
+  try { return digest(file) === expected; } catch { return false; }
+}
+
+async function fetchBytes(url) {
   const response = await fetch(url, {
     headers: { 'User-Agent': 'DLSS5-Swapper/2.1' },
     signal: AbortSignal.timeout(120000)
   });
   if (!response.ok) throw new Error(`Download failed (${response.status})`);
+  return Buffer.from(await response.arrayBuffer());
+}
+
+async function download(url, file) {
+  const data = await fetchBytes(url);
   const temp = file + '.part';
   await fs.promises.mkdir(path.dirname(file), { recursive: true });
-  await fs.promises.writeFile(temp, Buffer.from(await response.arrayBuffer()));
+  await fs.promises.writeFile(temp, data);
   await fs.promises.rename(temp, file);
 }
+
+function componentError(code, message) { return Object.assign(new Error(message), { code }); }
+
+// Three different failures used to arrive as one message about the network.
+// The bytes are checked in memory first, so a bad transfer is told apart
+// from a file that was verified and then taken away - which is what a
+// security tool quarantining dgVoodoo2's wrapper DLLs looks like from here,
+// and no amount of retrying the connection fixes it.
+// The two steps are injectable so the quarantine case - bytes that verify and
+// then are not there - can be exercised without a real antivirus.
+async function fetchVerified(url, expected, file, deps = {}) {
+  const fetcher = deps.fetchBytes || fetchBytes;
+  const read = deps.digest || digest;
+  let data;
+  try {
+    data = await fetcher(url);
+  } catch (cause) { throw componentError('componentNetwork', cause.message); }
+  const received = crypto.createHash('sha256').update(data).digest('hex');
+  if (received !== expected) {
+    throw componentError('componentChecksum', `expected ${expected}, received ${received}`);
+  }
+  await fs.promises.mkdir(path.dirname(file), { recursive: true });
+  const temp = file + '.part';
+  await fs.promises.writeFile(temp, data);
+  await fs.promises.rename(temp, file);
+  let stored = null;
+  try { stored = read(file); } catch { stored = null; }
+  if (stored !== expected) throw componentError('componentRemoved', path.dirname(file));
+}
+
 
 async function ensureLumenite(cacheRoot) {
   const base = path.join(cacheRoot, 'components', `LumeniteFX-${LUMENITE.commit.slice(0, 8)}`);
@@ -68,13 +108,9 @@ async function ensureLumenite(cacheRoot) {
     if (root) return root;
   }
 
-  if (!fs.existsSync(archive) || digest(archive) !== LUMENITE.sha256) {
+  if (!cached(archive, LUMENITE.sha256)) {
     try { await fs.promises.unlink(archive); } catch {}
-    await download(LUMENITE.url, archive);
-  }
-  if (digest(archive) !== LUMENITE.sha256) {
-    try { await fs.promises.unlink(archive); } catch {}
-    throw new Error('LumeniteFX SHA-256 verification failed');
+    await fetchVerified(LUMENITE.url, LUMENITE.sha256, archive);
   }
 
   await fs.promises.rm(base, { recursive: true, force: true });
@@ -86,4 +122,4 @@ async function ensureLumenite(cacheRoot) {
   return root;
 }
 
-module.exports = { LUMENITE, DGVOODOO, ensureLumenite, ensureDgVoodoo, missingVCRuntime, digest, download };
+module.exports = { LUMENITE, DGVOODOO, ensureLumenite, ensureDgVoodoo, missingVCRuntime, digest, download, fetchBytes, fetchVerified, cached };
