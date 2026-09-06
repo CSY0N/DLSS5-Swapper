@@ -3,6 +3,7 @@
 // which executable is the game, which rendering API it uses, where the
 // existing DLSS/Streamline files live, and whether ReShade is already there.
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const pe = require('./pe');
 const emulators = require('./emulators');
@@ -201,15 +202,44 @@ function apiFromFileName(file) {
   return null;
 }
 
+// Where RDR2 keeps its own graphics settings. The executable is byte-for-byte
+// the same under DX12 and Vulkan, so this file is the only place the answer
+// exists, and people who switch the renderer for a Vulkan-only ReShade add-on
+// were left looking at a card that still said DirectX 12.
+function rdr2SettingsFiles() {
+  const home = process.env.USERPROFILE || os.homedir();
+  const rel = path.join('Rockstar Games', 'Red Dead Redemption 2', 'Settings', 'system.xml');
+  // Documents is often redirected into OneDrive, which leaves the original
+  // path empty rather than missing.
+  const roots = [path.join(home, 'Documents'), path.join(home, 'OneDrive', 'Documents')];
+  if (process.env.OneDrive) roots.push(path.join(process.env.OneDrive, 'Documents'));
+  return roots.map((root) => path.join(root, rel));
+}
+
+// Deliberately one-way: only an explicit Vulkan setting moves the answer. A
+// missing, unreadable or unrecognised file keeps the DirectX 12 this profile
+// has always reported, so a wrong guess here can never take a working game
+// away from someone.
+function rdr2Renderer(files = rdr2SettingsFiles()) {
+  for (const file of files) {
+    let text;
+    try { text = fs.readFileSync(file, 'utf8'); } catch { continue; }
+    const setting = /<API[^>]*>([^<]*)<\/API>/i.exec(text);
+    if (setting && /vulkan/i.test(setting[1])) return { api: 'vulkan', label: 'Vulkan' };
+    if (setting) return { api: 'dxgi', label: 'DirectX 12' };
+  }
+  return { api: 'dxgi', label: 'DirectX 12' };
+}
+
 // A few engines keep compatibility or launcher code for an API they never use
 // to render the game. RDR2 carries a Direct3D 9 marker even though its only PC
 // renderers are DX12 and Vulkan, so binary-string guessing is actively wrong
 // for this executable. Profiles are intentionally exact-name and expose every
 // renderer the user can select instead of pretending the first marker wins.
-function gameApiProfile(file) {
+function gameApiProfile(file, renderer = rdr2Renderer) {
   if (/^rdr2\.exe$/i.test(path.basename(file))) {
     return {
-      detected: { api: 'dxgi', label: 'DirectX 12', via: 'game-profile' },
+      detected: { ...renderer(), via: 'game-profile' },
       choices: [
         { api: 'dxgi', label: 'DirectX 12' },
         { api: 'vulkan', label: 'Vulkan' }
@@ -563,5 +593,6 @@ function scanSource(sourceDir) {
 }
 
 module.exports = {
-  scanGame, scanSource, walk, selectPrimaryDlss, xboxExecutables, playableRoleScore, inspectReShade
+  scanGame, scanSource, walk, selectPrimaryDlss, xboxExecutables, playableRoleScore, inspectReShade,
+  gameApiProfile, rdr2Renderer, rdr2SettingsFiles
 };
