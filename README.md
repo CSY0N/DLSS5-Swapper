@@ -17,11 +17,11 @@
   <a href="https://buymeacoffee.com/rakanki911"><img height="20" src="https://cdn.buymeacoffee.com/buttons/v2/lato-yellow.png" alt="Buy me a coffee"></a>
 </p>
 
-## Download 2.2.1
+## Download 2.2.2
 
-[**Windows Installer**](https://github.com/rakanki911/DLSS5-Swapper/releases/download/v2.2.1/DLSS5-Swapper-Setup-2.2.1.exe) ·
-[**Portable**](https://github.com/rakanki911/DLSS5-Swapper/releases/download/v2.2.1/DLSS5-Swapper-2.2.1-portable.exe) ·
-[Checksums](https://github.com/rakanki911/DLSS5-Swapper/releases/download/v2.2.1/SHA256SUMS.txt)
+[**Windows Installer**](https://github.com/rakanki911/DLSS5-Swapper/releases/download/v2.2.2/DLSS5-Swapper-Setup-2.2.2.exe) ·
+[**Portable**](https://github.com/rakanki911/DLSS5-Swapper/releases/download/v2.2.2/DLSS5-Swapper-2.2.2-portable.exe) ·
+[Checksums](https://github.com/rakanki911/DLSS5-Swapper/releases/download/v2.2.2/SHA256SUMS.txt)
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/rakanki911/DLSS5-Swapper/7415065e5c5437441d0e0b0a0362d0ada6d86e15/docs/screenshots/01-home.png" alt="Home" width="100%">
@@ -39,6 +39,82 @@
 - **In-game overlay:** press **F8** to open the app's own panel over the running game and move the real DLSS Neural Rendering sliders while you play. Supports the **DLSS5-Feeder** and **RenoDX v4.7** routes only.
 - **Rendering API override:** optional, per game, with **Automatic** as the default; detection is never overwritten.
 - **Custom add-ons:** the Add-ons page remains available alongside the integrated installation routes.
+
+## New in 2.2.2
+
+A release about the reports people sent, most of them fixed at the cause.
+
+### Games it can now find and install into
+
+- **Executables whose renderer cannot be read are offered anyway.** Protected
+  builds, script extenders like `f4se_loader`, and launchers that start the
+  real engine name no rendering API at all and were silently dropped - the
+  "no 3D executable" report. They now appear in the executable picker, with
+  the renderer shown as unknown for you to set.
+- **Ubisoft Connect games are discovered**, alongside Steam, Epic, GOG and the
+  Xbox folders.
+- **DXVK and vkd3d games are reported as Vulkan.** The scanner used to call
+  them DirectX and offer a route that installs a Direct3D hook, while the
+  installer refused to overwrite the wrapper - a game that could not be
+  installed with no explanation.
+- **Red Dead Redemption 2 follows the renderer you chose in the game**, read
+  from its own `system.xml`, instead of always reporting DirectX 12.
+
+### The in-game overlay
+
+- **A game that crashed no longer locks the overlay out of every game after
+  it.** Only one game at a time drives the panel, and a killed game could
+  leave its end of the pipe open forever - the panel then said it was waiting
+  for a design that never came.
+- **The game holds still while the panel is open.** No mouse or keyboard input
+  reaches the game, the way ReShade does for its own overlay, so a slider can
+  be judged on one fixed shot.
+- **The Overlay page says what the service is doing** - listening, connected
+  to a game, or not running - with a dot for each state.
+
+### Installing
+
+- **Files are installed writable.** Windows carries the read-only attribute
+  across a copy and the payload inside the installed app is read-only, which
+  is what "Unable to save configuration and/or current preset ... ReShade.ini"
+  on the game's screen means. It also broke a second install and the restore
+  after it.
+- **Feeder's Vulkan interop layer ships and is installed with a Vulkan game.**
+  Some drivers and emulators do not expose the KHR external-interop
+  extensions, and the install then looked perfect and did nothing.
+- **An older NVIDIA driver no longer blocks OptiScaler.** The neural-rendering
+  model file ships with this app rather than being taken from the driver, so
+  an older driver still runs - which matters because 616.64 and 616.86 are
+  measured upstream to fault inside NVIDIA's own runtime, and people roll back
+  deliberately. The ReShade and Feeder routes say so before installing.
+- **The professional Blackwell boards are accepted.** OptiScaler needs a
+  Blackwell card, and the check asked for a name matching "RTX 50xx" - an
+  RTX PRO 6000 Blackwell was refused for being called something else.
+- **A component that antivirus quarantines says so.** "Check your connection"
+  was shown for every failure, including the one where the connection is fine
+  and Defender removed the file after it verified.
+
+### Everyday
+
+- **An update notice** in the sidebar when a newer release exists. One lookup,
+  no identifiers sent, nothing downloaded or installed.
+- **Hiding a game is reversible**: Settings lists what is hidden with *Show
+  again*, and hiding asks first.
+- **Closing the window quits.** The overlay service held an offscreen window,
+  so the process stayed in Task Manager with nothing on screen.
+- **A faster, quieter start.** Drive discovery no longer blocks on a cold WMI
+  call, two game cards scanning at once can no longer erase each other's
+  results, and the add-ons page does not re-hash every file on each visit.
+- **A support button** on the About page, and in this README.
+
+### Components
+
+DLSS5-Feeder **0.14.0-beta.4** (was 0.12.0) · OptiScaler DLSS-NR
+**0.2.0-patch1** (was 0.1.1.5) · LumeniteFX updated · ReShade 6.8.0 and
+dgVoodoo2 2.87.4 already current.
+
+[Full 2.2.2 notes →](https://github.com/rakanki911/DLSS5-Swapper/releases/tag/v2.2.2) ·
+[What arrived in 2.2.1 →](https://github.com/rakanki911/DLSS5-Swapper/releases/tag/v2.2.1)
 
 ## New in 2.2.1
 
@@ -64,7 +140,6 @@
   theme cards misaligned in Arabic/Persian/Urdu, and an updated overlay build
   that refused to install over the previous one.
 
-[Full 2.2.1 notes →](https://github.com/rakanki911/DLSS5-Swapper/releases/tag/v2.2.1) ·
 [What arrived in 2.2.0 →](docs/releases/v2.2.0.md)
 
 ### The Overlay page
