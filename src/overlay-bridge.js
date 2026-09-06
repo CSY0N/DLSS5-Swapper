@@ -16,6 +16,9 @@ module.exports = async function startOverlayBridge({ BrowserWindow, userData, id
   const profile = path.basename(userData);
   const pipeName = `\\\\.\\pipe\\${profile}-overlay-${token}`;
   let latest = null, sequence = 0, client = null, closed = false, ready = false;
+  // What the panel is in CSS pixels, which is what the add-on expects to be
+  // handed regardless of what the desktop's scaling makes of it.
+  let panelHeight = 900;
   // How long an unreachable game may hold the single connection.
   const IDLE_TAKEOVER_MS = idleTakeoverMs;
   let server = null;
@@ -32,6 +35,7 @@ module.exports = async function startOverlayBridge({ BrowserWindow, userData, id
   ipcMain.on('lab-overlay-control', control);
   const resize = (event, height) => {
     if (closed || event.sender !== win.webContents || !Number.isInteger(height) || height < 200 || height > protocol.MAX_HEIGHT) return;
+    panelHeight = height;
     win.setContentSize(protocol.WIDTH, height);
     win.webContents.enableDeviceEmulation({ screenPosition: 'desktop', screenSize: { width: protocol.WIDTH, height }, deviceScaleFactor: 1, viewSize: { width: protocol.WIDTH, height }, viewPosition: { x: 0, y: 0 }, scale: 1 });
     win.webContents.invalidate();
@@ -46,11 +50,27 @@ module.exports = async function startOverlayBridge({ BrowserWindow, userData, id
     client.sequence = latest.readUInt32LE(8);
     client.write(latest);
   }
+  // The panel is a fixed 534-pixel surface on the other side of the pipe, but
+  // an offscreen window paints at the display's scale factor: measured here,
+  // a 534x320 panel comes back as 804x480 on a 150% display. Every one of
+  // those frames used to be dropped by the size check, so nothing ever
+  // reached the game and the add-on waited for a design that never arrived -
+  // on any scaled display, which is most of them.
   win.webContents.on('paint', (_event, _dirty, image) => {
     if (!ready || closed) return;
-    const { width, height } = image.getSize();
-    if (width !== protocol.WIDTH || height > protocol.MAX_HEIGHT) return;
-    latest = protocol.frame(image.toBitmap(), width, height, ++sequence);
+    const painted = image.getSize();
+    if (!painted.width || !painted.height) return;
+    // Resized to the panel's own height rather than by aspect ratio, so a
+    // rounded scale cannot drift a row per frame.
+    const frame = painted.width === protocol.WIDTH ? image
+      : image.resize({ width: protocol.WIDTH, height: panelHeight, quality: 'good' });
+    const { width, height } = frame.getSize();
+    if (width !== protocol.WIDTH || height < 1 || height > protocol.MAX_HEIGHT) return;
+    const bitmap = frame.toBitmap();
+    // A bitmap that is not exactly the size it claims would be refused by the
+    // add-on and drop the connection; skip the frame instead.
+    if (bitmap.length !== width * height * 4) return;
+    latest = protocol.frame(bitmap, width, height, ++sequence);
     sendLatest();
   });
   function close() {
@@ -70,6 +90,7 @@ module.exports = async function startOverlayBridge({ BrowserWindow, userData, id
   preferences.events.on('change',preferenceChanged);
   const height = Math.ceil(await win.webContents.executeJavaScript(`document.querySelector('#panel').getBoundingClientRect().height`));
   if (height < 1 || height > protocol.MAX_HEIGHT) { win.destroy(); throw Error('Overlay panel height exceeds its bounded surface'); }
+  panelHeight = height;
   win.setContentSize(protocol.WIDTH, height);
   // Fixed CSS pixels regardless of desktop DPI. No scaling/reflow in the native UI.
   win.webContents.enableDeviceEmulation({ screenPosition: 'desktop', screenSize: { width: protocol.WIDTH, height }, deviceScaleFactor: 1, viewSize: { width: protocol.WIDTH, height }, viewPosition: { x: 0, y: 0 }, scale: 1 });
