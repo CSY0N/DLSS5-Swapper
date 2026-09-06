@@ -348,6 +348,9 @@ function playableRoleScore(exe) {
 
 async function scanGame(gameDir) {
   const exeCandidates = [];
+  // Executables that are real PE binaries but name no rendering API. Kept
+  // aside rather than thrown away: see the fallback below.
+  const undetectedExes = [];
   const dlssFiles = [];
   const streamlineFiles = [];
   let addonPresent = null;
@@ -367,7 +370,10 @@ async function scanGame(gameDir) {
       const detected = emulator
         ? { ...emulators.apiChoices(emulator)[0], via: 'emulator-profile' }
         : (gameProfile ? gameProfile.detected : detectApi(full, pe.getImports(full)));
-      if (!detected) return;
+      if (!detected) {
+        undetectedExes.push({ path: full, rel: path.relative(gameDir, full), name, size, depth, bitness });
+        return;
+      }
       // File size is not a game classifier. Genuine engine dispatchers can be
       // only a few KB; retain them when PE/API evidence above is available.
       exeCandidates.push({
@@ -452,6 +458,21 @@ async function scanGame(gameDir) {
   }
   exeCandidates.length = 0;
   exeCandidates.push(...unique);
+
+  // Nothing named an API, but the folder ships DLSS or Streamline - so it is
+  // a game, and one whose renderer we simply could not read. Protected and
+  // launcher-fronted builds resolve Direct3D in a way that leaves no import
+  // and no string behind. Dropping those made the app say "not a game" about
+  // exactly the titles it exists for. The renderer is left unknown and the
+  // person chooses it on the game page, where every API is offered.
+  if (!exeCandidates.length && undetectedExes.length && (dlssFiles.length || streamlineFiles.length)) {
+    const best = [...undetectedExes].sort((a, b) =>
+      (playableRoleScore(b) - playableRoleScore(a)) || (a.depth - b.depth) || (b.size - a.size))[0];
+    exeCandidates.push({
+      ...best, api: null, apiLabel: null, via: 'undetected',
+      dynamic: true, dx12: false, emulator: null, apiChoices: []
+    });
+  }
 
   const chosen = exeCandidates[0] || null;
   const primaryDlss = selectPrimaryDlss(dlssFiles, chosen);
