@@ -694,6 +694,18 @@ function installOptions(d, pick, dir) {
     ${pick.emulator ? `<div class="emu-note"><b>${esc(pick.emulator.name)} · ${esc(pick.emulator.system)}</b><span>${esc(pick.emulator.hint)}</span><span>${t('emulatorDepthHint')}</span>${pick.emulator.key === 'xenia' ? `<span>${t('xeniaUiHint')}</span>` : ''}</div>` : ''}`;
 }
 
+// A newer release exists, said once, in the corner. The link is the same
+// allowlisted releases page the About view uses; nothing downloads itself.
+async function showUpdateNotice() {
+  const link = $('statusUpdate');
+  if (!link || !window.lab.checkUpdate) return;
+  let answer = null;
+  try { answer = await window.lab.checkUpdate(); } catch { return; }
+  if (!answer || !answer.newer) return;
+  link.textContent = t('updateAvailable', answer.latest);
+  link.classList.remove('hidden');
+}
+
 function jobLog(line) {
   jobLines.push(line);
   const box = document.querySelector('.job');
@@ -1152,6 +1164,7 @@ document.addEventListener('drop', (e) => e.preventDefault());
   document.documentElement.dataset.theme = state.theme;
   applyLang(boot.lang || 'en');
   $('statusVersion').textContent = `v${boot.version}`;
+  showUpdateNotice();
   state.logo = boot;
   paintBrand();
   state.art = (await window.lab.artStatus()).available;

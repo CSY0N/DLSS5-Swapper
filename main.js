@@ -790,6 +790,39 @@ ipcMain.handle('art-fetch', async (_event, dir, name, appid) => {
 
 // ---------- installing ----------
 
+// Releases move quickly and nothing here updates itself, so someone can sit
+// on a build for weeks without knowing. One lookup per launch, no identifiers
+// sent, no download started: the answer is a version number and a link the
+// person may click. Any failure is silence - this must never delay a start.
+let updateAnswer = null;
+const releaseTag = /^v?(\d+)\.(\d+)\.(\d+)/;
+function newerRelease(current, latest) {
+  const a = releaseTag.exec(current), b = releaseTag.exec(latest);
+  if (!a || !b) return false;
+  for (let i = 1; i <= 3; i++) {
+    if (Number(b[i]) > Number(a[i])) return true;
+    if (Number(b[i]) < Number(a[i])) return false;
+  }
+  return false;
+}
+ipcMain.handle('update-check', async () => {
+  if (updateAnswer) return updateAnswer;
+  const current = app.getVersion();
+  try {
+    const response = await fetch('https://api.github.com/repos/rakanki911/DLSS5-Swapper/releases/latest', {
+      headers: { 'User-Agent': `DLSS5-Swapper/${current}`, Accept: 'application/vnd.github+json' },
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!response.ok) throw Error(String(response.status));
+    const release = await response.json();
+    const latest = String(release.tag_name || '').replace(/^v/, '');
+    updateAnswer = { current, latest, newer: newerRelease(current, latest) };
+  } catch {
+    // Offline, rate-limited or blocked: say nothing rather than worry anyone.
+    updateAnswer = { current, latest: null, newer: false };
+  }
+  return updateAnswer;
+});
 ipcMain.handle('details', async (_event, dir) => {
   const detailsPayload = payload();
   const scan = await scanGame(dir);

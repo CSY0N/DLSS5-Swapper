@@ -154,6 +154,12 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round
 .live { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px rgba(108, 193, 10, .7); }
 .status-sub { font-size: 11.5px; color: var(--dim); margin-top: 4px; }
 .bar { height: 4px; border-radius: 4px; background: var(--line); margin-top: 12px; overflow: hidden; }
+/* Only there when a newer release exists; it is a link, never a nag. */
+.status-update {
+  display: block; margin: 6px 0 2px; font-size: 11.5px; font-weight: 600;
+  color: var(--accent); text-decoration: none;
+}
+.status-update:hover { text-decoration: underline; }
 .bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s ease; }
 
 /* ---------------- main ---------------- */
