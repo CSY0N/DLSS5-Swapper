@@ -1026,3 +1026,12 @@ body { cursor: default; }
   .hist-row { flex-wrap: wrap; }
   .hist-row .n { flex-basis: 100%; }
 }
+
+/* Support block on the About page. Both images are local files: the page
+   allows no remote images, and this must work offline. */
+.support { margin: 22px 0 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+.support-line { font-size: 13px; color: var(--muted); line-height: 1.8; margin-bottom: 14px; }
+.support-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.support-button { display: inline-flex; border-radius: 10px; }
+.support-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.support-qr { border-radius: 10px; background: #fff; padding: 6px; }

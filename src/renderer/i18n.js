@@ -113,6 +113,7 @@ const S = {
     setRoots: 'Found on your drives',
     setPosters: 'Posters', setSaved: (n) => `${n} saved`, setLang: 'Language',
     aboutTitle: 'DLSS 5 Swapper', aboutBody: 'Puts DLSS 5 Neural Rendering into your games, and takes it back out whenever you want.', aboutBy: 'Built by Rakan Alkhaldi',
+    supportBody: 'DLSS 5 Swapper is free and MIT licensed. If it saved you an evening of fiddling, you can buy me a coffee - or scan the code with your phone.',
     agoNow: 'just now', agoMin: (n) => `${n} min ago`, agoHour: (n) => `${n} h ago`, agoDay: (n) => `${n} d ago`,
     artFound: (a, b) => `Artwork: ${a} of ${b} found`, libReady: (n, d) => `Library ready — ${n} games, ${d} on DirectX 12`
   },
@@ -208,6 +209,7 @@ const S = {
     setRoots: 'مكتشفة في أقراصك',
     setPosters: 'البوسترات', setSaved: (n) => `${n} محفوظ`, setLang: 'اللغة',
     aboutTitle: 'DLSS 5 Swapper', aboutBody: 'يضع DLSS 5 في ألعابك، ويرجّعها كما كانت متى شئت.', aboutBy: 'من تطوير راكان الخالدي',
+    supportBody: 'البرنامج مجاني ومفتوح المصدر برخصة MIT. إن وفّر عليك عناءً فبإمكانك دعمي بفنجان قهوة - أو امسح الرمز بجوالك.',
     agoNow: 'الآن', agoMin: (n) => `قبل ${n} دقيقة`, agoHour: (n) => `قبل ${n} ساعة`, agoDay: (n) => `قبل ${n} يوم`,
     artFound: (a, b) => `الصور: ${a} من ${b}`, libReady: (n, d) => `المكتبة جاهزة — ${n} لعبة، ${d} على DirectX 12`
   },
