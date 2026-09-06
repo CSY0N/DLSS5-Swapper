@@ -142,6 +142,11 @@ function canWrite(dir) {
 async function copyOver(src, dest) {
   await fs.promises.mkdir(path.dirname(dest), { recursive: true });
   await fs.promises.copyFile(src, dest);
+  // Windows carries the source's read-only attribute across a copy, and the
+  // payload inside an installed app is read-only. A read-only ReShade.ini is
+  // exactly what "Unable to save configuration" on the game's screen means,
+  // and a read-only DLL makes the next install or restore fail on overwrite.
+  try { await fs.promises.chmod(dest, 0o666); } catch { /* the copy is what matters */ }
 }
 
 function runSetup(setupExe, args, log) {
@@ -246,6 +251,9 @@ async function writeTracked(manifest, gameDir, dest, text, meta = {}) {
   const rel = await trackBeforeWrite(manifest, gameDir, dest, meta);
   await saveActiveManifest(gameDir, manifest);
   await fs.promises.mkdir(path.dirname(dest), { recursive: true });
+  // A file an earlier install copied in can be read-only, and Windows refuses
+  // to rewrite it: clear the attribute before, not only after.
+  try { await fs.promises.chmod(dest, 0o666); } catch { /* absent is normal */ }
   await fs.promises.writeFile(dest, text, 'utf8');
   return rel;
 }
