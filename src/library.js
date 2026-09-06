@@ -160,20 +160,25 @@ const LIBRARY_NAME = /^(games?|my ?games|steamlibrary|gog ?games|epic ?games|xbo
 const NOT_A_GAME_EXE = /^(unins|setup|install|vcredist|dxsetup|dotnet|oalinst|crashpad|launcher_installer)/i;
 
 // Fixed disks only. A disconnected network drive would block on every read.
+//
+// Ask the filesystem first: reading a drive root costs microseconds, while the
+// cold WMI call this used to start with routinely takes seconds and froze the
+// window on every launch with drive scanning on. PowerShell is still there for
+// the case the probe finds nothing at all.
 function drives() {
+  const list = [];
+  for (let c = 67; c <= 90; c++) {
+    const root = String.fromCharCode(c) + ':\\';
+    try { fs.readdirSync(root); list.push(root); } catch { /* no such drive */ }
+  }
+  if (list.length) return list;
   try {
     const out = execFileSync('powershell', ['-NoProfile', '-Command',
       'Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | ForEach-Object { $_.DeviceID }'
     ], { encoding: 'utf8', timeout: 8000, windowsHide: true });
     const found = out.split(/\r?\n/).map((l) => l.trim()).filter((l) => /^[A-Za-z]:$/.test(l));
     if (found.length) return found.map((d) => d + '\\');
-  } catch {}
-  // If that is unavailable, fall back to whatever letters answer a read.
-  const list = [];
-  for (let c = 67; c <= 90; c++) {
-    const root = String.fromCharCode(c) + ':\\';
-    try { fs.readdirSync(root); list.push(root); } catch {}
-  }
+  } catch { /* nothing else to try */ }
   return list;
 }
 

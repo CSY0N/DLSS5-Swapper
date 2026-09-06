@@ -274,7 +274,13 @@ function createWindow() {
   });
   win.loadFile(path.join(__dirname, 'src', 'renderer', 'index.html'));
   win.once('ready-to-show', () => win.show());
-  win.on('closed', () => { win = null; });
+  win.on('closed', () => {
+    win = null;
+    // The overlay bridge holds an offscreen window, so the window list is
+    // never empty and window-all-closed never arrives: without this the
+    // process stayed in Task Manager with nothing on screen.
+    if (!quitting) app.quit();
+  });
 }
 
 // Windows groups taskbar entries and attributes shortcuts by this id. Without
@@ -312,6 +318,10 @@ app.whenReady().then(async () => {
     if (!quitting) console.error('Overlay bridge:', error.message);
   }
 });
+// The overlay bridge keeps an offscreen window of its own, so closing the
+// visible one no longer emptied the window list and window-all-closed never
+// arrived: the process stayed in Task Manager with nothing on screen. Quitting
+// follows the window the person actually closed.
 app.on('window-all-closed', () => app.quit());
 app.on('before-quit', () => { quitting = true; overlayBridge?.close(); });
 
