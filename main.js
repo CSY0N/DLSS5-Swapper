@@ -307,6 +307,28 @@ function createWindow() {
 
 app.setAppUserModelId('com.rakan.dlss5swapper');
 
+// A second copy of the app is not just wasted memory: it writes its own
+// overlay endpoint over the first one's and listens on its own pipe, so the
+// panel in the game would be driven by whichever window happened to start
+// last. Opening the app again raises the window that is already running.
+//
+// The lock is asked for defensively - the IPC handlers in this file are also
+// exercised outside Electron, where app is a stand-in that has no such call.
+const singleInstance = typeof app.requestSingleInstanceLock === 'function'
+  ? app.requestSingleInstanceLock()
+  : true;
+if (!singleInstance) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (!win || win.isDestroyed()) return;
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+  });
+}
+
+
 // The same overlay library the Overlay page manages, so an install picks up
 // exactly the build shown there.
 function overlayLibrary() {
@@ -325,6 +347,10 @@ let overlayBridge;
 let quitting = false;
 
 app.whenReady().then(async () => {
+  // app.quit() is asynchronous, so a copy that lost the lock still reaches
+  // this point: without the guard it would create a window and take over the
+  // overlay endpoint on its way out.
+  if (!singleInstance) return;
   // Registered here rather than at load: main.js is exercised in a plain vm
   // context by the tests, where src modules are stubbed and cannot be called.
   require('./src/overlay-ipc')({ app, ipcMain, dialog, shell, window: () => win, bridge: () => overlayBridge });
