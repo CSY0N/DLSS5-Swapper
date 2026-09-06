@@ -10,9 +10,20 @@ const { execFileSync } = require('child_process');
 // Entries that are tooling rather than games.
 const NOT_A_GAME = /redistributabl|steamworks common|directx|vcredist|proton|steam linux runtime|soundtrack/i;
 
+// Every registry read goes through one place so the discovery below can be
+// exercised against a fake registry in the tests.
+// stderr is ignored: reg.exe writes "unable to find the specified registry
+// key" for every launcher that is not installed, which is the normal case.
+let registryRunner = (args) => execFileSync('reg', args,
+  { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+const defaultRegistryRunner = registryRunner;
+// Passing nothing puts the real reg.exe back, so a test cannot leave the
+// registry stubbed out for whatever runs after it.
+function setRegistryRunner(runner) { registryRunner = runner || defaultRegistryRunner; }
+
 function reg(key, value) {
   try {
-    const out = execFileSync('reg', ['query', key, '/v', value], { encoding: 'utf8', windowsHide: true });
+    const out = registryRunner(['query', key, '/v', value]);
     const m = out.match(new RegExp(value + '\\s+REG_\\w+\\s+(.+)'));
     return m ? m[1].trim() : null;
   } catch {
@@ -22,7 +33,7 @@ function reg(key, value) {
 
 function regKeys(key) {
   try {
-    return execFileSync('reg', ['query', key], { encoding: 'utf8', windowsHide: true })
+    return registryRunner(['query', key])
       .split('\n').map((l) => l.trim()).filter((l) => l.startsWith('HKEY'));
   } catch {
     return [];
@@ -135,6 +146,27 @@ function gog() {
     const name = reg(key, 'gameName') || path.basename(dir);
     if (NOT_A_GAME.test(name)) continue;
     games.push({ launcher: 'GOG', id: key.split('\\').pop(), name, dir, poster: null });
+  }
+  return games;
+}
+
+
+// ---------- Ubisoft Connect ----------
+// Its installer records every game under one key, with the folder in
+// InstallDir - written with forward slashes, which is why it is resolved
+// before use. Ubisoft games were simply never looked for before, so they
+// only appeared for people who added the folder by hand.
+function ubisoft() {
+  const games = [];
+  for (const key of regKeys('HKLM\\SOFTWARE\\WOW6432Node\\Ubisoft\\Launcher\\Installs')) {
+    const raw = reg(key, 'InstallDir');
+    if (!raw) continue;
+    const dir = path.resolve(raw);
+    // The key outlives an uninstall, exactly like the Epic manifests.
+    if (!fs.existsSync(dir)) continue;
+    const name = path.basename(dir);
+    if (NOT_A_GAME.test(name)) continue;
+    games.push({ launcher: 'Ubisoft', id: key.split('\\').pop(), name, dir, poster: null });
   }
   return games;
 }
@@ -284,7 +316,7 @@ function filterExcluded(games, excludedRoots = []) {
 }
 
 function discover(extraFolders = [], scanDrives = false, excludedRoots = [], findAutoRoots = autoRoots) {
-  const found = [...steam(), ...epic(), ...gog()];
+  const found = [...steam(), ...epic(), ...gog(), ...ubisoft()];
   const roots = (scanDrives ? findAutoRoots() : [])
     .filter((root) => !excludedRoots.some((excluded) => isInside(root, excluded)));
   for (const dir of roots) found.push(...folder(dir, 'My folders', true));
@@ -295,4 +327,4 @@ function discover(extraFolders = [], scanDrives = false, excludedRoots = [], fin
   return { games: dedupe(filterExcluded(found, excludedRoots)), roots };
 }
 
-module.exports = { discover, folder, dedupe, autoRoots, drives, isInside, filterExcluded, steam, linuxSteamRoots };
+module.exports = { discover, folder, dedupe, autoRoots, drives, isInside, filterExcluded, steam, linuxSteamRoots, gog, ubisoft, setRegistryRunner };
