@@ -36,9 +36,9 @@ function missingVCRuntime(bitness, exeDir, systemRoot = process.env.SystemRoot, 
 }
 
 const LUMENITE = {
-  commit: '76fa3e4d601c97e9bc63f119c01405b7b9938885',
-  url: 'https://codeload.github.com/umar-afzaal/LumeniteFX/zip/76fa3e4d601c97e9bc63f119c01405b7b9938885',
-  sha256: 'bf574543a6af6527587af0bad139922e8c0363bb154cdfb3e41133c7dca2ee3f'
+  commit: 'f8cbbb4eccfcb7adf0d74bb358ba349272e3c1e9',
+  url: 'https://codeload.github.com/umar-afzaal/LumeniteFX/zip/f8cbbb4eccfcb7adf0d74bb358ba349272e3c1e9',
+  sha256: '43220f99fc0ffa0216e01ebd657180f8c9d043c939f760283b896ea257f1b6a2'
 };
 
 function digest(file) {

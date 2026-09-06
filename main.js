@@ -887,6 +887,18 @@ ipcMain.handle('install', (event, dir, exePath, requestedRoute, requestedApi) =>
     antiCheatAcknowledged = true;
     send({ code: 'antiCheatRiskAccepted', params: {} });
   }
+  // The ReShade and Feeder routes both drive the RenoDX neural consumer, which
+  // upstream has measured faulting inside NVIDIA's runtime on a known driver
+  // range. Say so before the work starts; it never stops the install.
+  if (route === 'native' || route === 'feeder') {
+    // Advice only: nothing about reading the driver may decide whether an
+    // install runs.
+    try {
+      const rows = await guards.gpuInfo();
+      if (guards.driverNeuralFault(rows)) send({ code: 'driverNeuralFault', params: { gpu: guards.driverNames(rows) } });
+    } catch {}
+  }
+
   let optiRoot = null;
   if (route === 'optiscaler') {
     optiscaler.checkConflicts(dir, target.path, old, api);

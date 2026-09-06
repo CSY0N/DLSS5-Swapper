@@ -38,6 +38,16 @@ const driverNumber = row => {
   const [major, minor] = String(row.driver).split('.');
   return Number(major) * 100 + Number(minor);
 };
+// Measured upstream by the Feeder author across three machines: with the
+// RenoDX DLSS 5 consumer (v4.6 and v4.7), every neural evaluate faults inside
+// NVIDIA's own NGX runtime on 616.64 and 616.86, while 616.56 completes.
+// Reported as DLSS5-Feeder issue #54. This only warns - the install is the
+// person's to make, and a later driver may well fix it.
+const NEURAL_FAULT_DRIVER = 61664;
+function driverNeuralFault(rows) {
+  return (rows || []).some(row => /nvidia|rtx|gtx/i.test(row.name) && driverNumber(row) >= NEURAL_FAULT_DRIVER);
+}
+function driverNames(rows) { return (rows || []).map(row => `${row.name} - ${row.driver}`).join(', '); }
 function gpuModelSupported(rows) { return rows.some(rtx50); }
 function driverSupported(rows) { return rows.some(row => rtx50(row) && driverNumber(row) >= OPTI_DRIVER); }
 function gpuSupported(rows) { return gpuModelSupported(rows) && driverSupported(rows); }
@@ -66,4 +76,4 @@ function antiCheatPresent(gameDir) {
   }
   return false;
 }
-module.exports = { assertGameClosed, matchingProcesses, gpuInfo, gpuSupported, gpuModelSupported, driverSupported, antiCheatPresent };
+module.exports = { assertGameClosed, matchingProcesses, gpuInfo, gpuSupported, gpuModelSupported, driverSupported, driverNeuralFault, driverNames, antiCheatPresent };

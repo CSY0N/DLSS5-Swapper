@@ -47,6 +47,14 @@ test('GPU requirements and process guards reject known unsupported/running targe
   assert.equal(guards.driverSupported([{ name: 'NVIDIA GeForce RTX 5090', driver: '610.00' }]), false);
   assert.equal(guards.gpuModelSupported([{ name: 'NVIDIA GeForce RTX 4090', driver: '617.00' }]), false);
   assert.equal(guards.driverSupported([{ name: 'NVIDIA GeForce RTX 5080', driver: '617.00' }]), true);
+  // The driver range upstream measured faulting inside NVIDIA's neural runtime
+  // is a warning of its own, independent of the OptiScaler requirements.
+  assert.equal(guards.driverNeuralFault([{ name: 'NVIDIA GeForce RTX 5090', driver: '616.56' }]), false);
+  assert.equal(guards.driverNeuralFault([{ name: 'NVIDIA GeForce RTX 5090', driver: '616.64' }]), true);
+  assert.equal(guards.driverNeuralFault([{ name: 'NVIDIA GeForce RTX 4070', driver: '616.86' }]), true);
+  assert.equal(guards.driverNeuralFault([{ name: 'NVIDIA GeForce RTX 5090', driver: '610.00' }]), false);
+  assert.equal(guards.driverNeuralFault(null), false);
+  assert.equal(guards.driverNames([{ name: 'RTX 5090', driver: '616.64' }]), 'RTX 5090 - 616.64');
   const root = path.resolve('test-fixture-game');
   const game = path.join(root, 'Game.exe');
   const rows = [{ Name: 'Game.exe', ExecutablePath: game, ProcessId: -1 }, { Name: 'Game.exe', ExecutablePath: null, ProcessId: -2 }, { Name: 'Other.exe', ExecutablePath: path.resolve('elsewhere', 'Other.exe'), ProcessId: -3 }];

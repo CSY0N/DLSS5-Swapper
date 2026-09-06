@@ -25,8 +25,8 @@ does not relicense that file or imply NVIDIA support for the integration.
 ## DLSS5-Feeder
 
 The bundled client add-ons, 64-bit helper, shader and diagnostic verifier are
-from the official DLSS5-Feeder v0.12.0 release:
-https://github.com/jlrouzies-fr/DLSS5-Feeder/releases/tag/v0.12.0
+from the official DLSS5-Feeder v0.14.0-beta.4 release:
+https://github.com/jlrouzies-fr/DLSS5-Feeder/releases/tag/v0.14.0-beta.4
 
 The project's MIT licence is included in payload/feeder/licenses/DLSS5-Feeder-LICENSE.txt.
 Release archive and component checksums are pinned in src/core/feeder-release.js.
