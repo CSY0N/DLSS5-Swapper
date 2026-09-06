@@ -114,7 +114,17 @@ async function install(config, log) {
     const rel = await copyTracked(manifest, gameDir, item.from, path.join(exeDir, item.to), { kind: 'optiscaler' });
     log({ code: 'added', params: { rel } });
   }
-  await copyTracked(manifest, gameDir, nr.path, path.join(exeDir, nr.name), { kind: 'runtime' });
+  // The model that ships here is NVIDIA's stock one, which runs on Blackwell.
+  // Older architectures need a modded build, supplied by the person for their
+  // own card, and copying ours over it would quietly break exactly the setup
+  // they came here with. An existing model is left alone; ours is installed
+  // only when there is none.
+  const model = path.join(exeDir, nr.name);
+  if (fs.existsSync(model)) {
+    log({ code: 'neuralModelKept', params: { rel: path.relative(gameDir, model) } });
+  } else {
+    await copyTracked(manifest, gameDir, nr.path, model, { kind: 'runtime' });
+  }
   const file = path.join(exeDir, 'OptiScaler.ini');
   const prior = config.profile?.[path.relative(gameDir, file)] ?? ini.readText(file);
   await writeTracked(manifest, gameDir, file, configure(prior || ini.readText(path.join(optiRoot, 'OptiScaler.ini')), config), { kind: 'config' });

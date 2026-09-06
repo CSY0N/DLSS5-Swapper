@@ -1018,16 +1018,17 @@ ipcMain.handle('install', (event, dir, exePath, requestedRoute, requestedApi) =>
     optiscaler.checkConflicts(dir, target.path, old, api);
     if (api === 'vulkan' && await vulkanLayer.existing(vulkanLayer.defaultRunner)) return { ok: false, code: 'errOptiVulkanLayer' };
     const gpu = await guards.gpuInfo();
-    // Only the card is refused outright. An older driver is said in the
-    // confirmation instead of blocking the install: this app supplies the
-    // neural-rendering model itself, and people who rolled back off 616.x to
-    // keep RenoDX working were otherwise unable to install at all.
-    if (gpu && !guards.gpuModelSupported(gpu)) return { ok: false, code: 'errOptiHardware', message: gpu.map(g => `${g.name} — ${g.driver}`).join('\n') };
+    // Neither the card nor the driver is refused outright any more. Upstream
+    // 0.2.0 says plainly that architectures older than Blackwell work with a
+    // modded nvngx_dlssnr.dll, which the person supplies themselves - so this
+    // is their decision to make, with both facts in front of them.
+    const oldCard = gpu ? !guards.gpuModelSupported(gpu) : false;
     const oldDriver = gpu ? !guards.driverSupported(gpu) : false;
     const confirmation = await dialog.showMessageBox(win, {
       type: 'warning', title: 'OptiScaler DLSS-NR',
       message: featureText('optiConfirm'),
       detail: [gpu ? gpu.map(g => `${g.name} — ${g.driver}`).join('\n') : featureText('errOptiHardware'),
+        oldCard ? featureText('optiCardOld') : null,
         oldDriver ? featureText('optiDriverOld') : null,
         featureText('optiHint'), featureText('optiBridgeHint'), featureText('backendHint')].filter(Boolean).join('\n\n'),
       buttons: [featureText('installOpti'), featureText('cancel')], defaultId: 1, cancelId: 1
