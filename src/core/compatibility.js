@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const pe = require('./pe');
 const guards = require('./install-guards');
-const { inspectReShade } = require('./scan');
+const { inspectReShade, isVulkanWrapper } = require('./scan');
 const { safePath } = require('./file-journal');
 
 function problem(code, message) { return Object.assign(new Error(message || code), { code }); }
@@ -42,13 +42,6 @@ function assertSafeTarget(gameDir, exePath) {
 }
 function assertAntiCheatConsent(gameDir, exePath, acknowledged) {
   if (hasAntiCheat(gameDir, exePath) && acknowledged !== true) throw problem('errAntiCheatConsent');
-}
-function isVulkanWrapper(file, bitness) {
-  if (pe.getBitness(file) !== bitness || pe.versionMentions(file, 'ReShade')) return false;
-  if (pe.versionMentions(file, 'DXVK') || pe.versionMentions(file, 'vkd3d')) return true;
-  const markers = pe.findMarkers(file, ['DXVK', 'vkd3d', 'vkGetInstanceProcAddr', 'ReShade']);
-  return !markers.has('ReShade') && markers.has('vkGetInstanceProcAddr') &&
-    (markers.has('DXVK') || markers.has('vkd3d'));
 }
 function assertLoaderCompatible(config, manifest) {
   const { gameDir, exePath, api, bitness, route } = config;

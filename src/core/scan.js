@@ -108,6 +108,35 @@ const API_MARKERS = [
   'Direct3DCreate9', 'Direct3DCreate8', 'CreateDXGIFactory', 'vkCreateInstance', 'wglCreateContext'
 ];
 
+// A Direct3D DLL sitting beside the executable that is really DXVK or vkd3d:
+// the game calls Direct3D, the wrapper turns it into Vulkan, and the frame
+// is presented by Vulkan. Both halves of the app need to agree on this - the
+// installer already refused to overwrite such a file, while the scanner
+// still called the game DirectX and offered a route that could not work.
+function isVulkanWrapper(file, bitness) {
+  if (pe.getBitness(file) !== bitness || pe.versionMentions(file, 'ReShade')) return false;
+  if (pe.versionMentions(file, 'DXVK') || pe.versionMentions(file, 'vkd3d')) return true;
+  const markers = pe.findMarkers(file, ['DXVK', 'vkd3d', 'vkGetInstanceProcAddr', 'ReShade']);
+  return !markers.has('ReShade') && markers.has('vkGetInstanceProcAddr') &&
+    (markers.has('DXVK') || markers.has('vkd3d'));
+}
+
+// Which DLL a game of each API would be calling, so only the file that could
+// be a wrapper is opened.
+const WRAPPED_BY_API = {
+  dxgi: ['d3d12.dll', 'd3d11.dll', 'dxgi.dll'],
+  d3d10: ['d3d10.dll', 'd3d10_1.dll'],
+  d3d9: ['d3d9.dll'],
+  d3d8: ['d3d8.dll']
+};
+function vulkanWrapperBeside(file, api, bitness) {
+  const dir = path.dirname(file);
+  for (const name of WRAPPED_BY_API[api] || []) {
+    const candidate = findCaseInsensitive(dir, name);
+    try { if (candidate && isVulkanWrapper(candidate, bitness)) return true; } catch { /* unreadable is not a wrapper */ }
+  }
+  return false;
+}
 function apiFromNames(imports) {
   const has = (n) => imports.includes(n);
   if (has('d3d12.dll')) return { api: 'dxgi', label: 'DirectX 12' };
@@ -379,6 +408,10 @@ async function scanGame(gameDir) {
         undetectedExes.push({ path: full, rel: path.relative(gameDir, full), name, size, depth, bitness });
         return;
       }
+      // DXVK and vkd3d present the frame with Vulkan even though the game asks
+      // for Direct3D, so that is the renderer to report and to install for.
+      const wrapped = !emulator && !gameProfile && detected.api !== 'vulkan' &&
+        vulkanWrapperBeside(full, detected.api, bitness);
       // File size is not a game classifier. Genuine engine dispatchers can be
       // only a few KB; retain them when PE/API evidence above is available.
       exeCandidates.push({
@@ -387,19 +420,21 @@ async function scanGame(gameDir) {
         name,
         size,
         depth,
-        api: detected.api,
-        apiLabel: detected.label,
-        via: detected.via,
+        api: wrapped ? 'vulkan' : detected.api,
+        apiLabel: wrapped ? 'Vulkan' : detected.label,
+        via: wrapped ? 'vulkan-wrapper' : detected.via,
         dynamic: detected.via !== 'imports',
         bitness,
-        dx12: detected.label === 'DirectX 12',
+        dx12: !wrapped && detected.label === 'DirectX 12',
         emulator: emulator ? {
           key: emulator.key, name: emulator.name, system: emulator.system,
           hint: emulator.hint
         } : null,
         apiChoices: emulator
           ? emulators.apiChoices(emulator)
-          : (gameProfile ? gameProfile.choices : [{ api: detected.api, label: detected.label }])
+          : gameProfile ? gameProfile.choices
+            : wrapped ? [{ api: 'vulkan', label: 'Vulkan' }, { api: detected.api, label: detected.label }]
+              : [{ api: detected.api, label: detected.label }]
       });
     } else if (DLSS_FILE.test(name) || STREAMLINE_FILE.test(name)) {
       const item = {
@@ -636,5 +671,6 @@ function scanSource(sourceDir) {
 
 module.exports = {
   scanGame, scanSource, walk, selectPrimaryDlss, xboxExecutables, playableRoleScore, inspectReShade,
+  isVulkanWrapper, vulkanWrapperBeside,
   gameApiProfile, rdr2Renderer, rdr2SettingsFiles
 };
