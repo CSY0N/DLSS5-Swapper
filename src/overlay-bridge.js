@@ -7,7 +7,7 @@ const protocol = require('./overlay-protocol');
 const preferences=require('./overlay-preferences');
 const { ipcMain } = require('electron');
 
-module.exports = async function startOverlayBridge({ BrowserWindow, userData }) {
+module.exports = async function startOverlayBridge({ BrowserWindow, userData, idleTakeoverMs = 5000 }) {
   const token = crypto.randomBytes(16).toString('hex');
   const endpoint = path.join(userData, 'overlay-bridge.endpoint');
   // The add-on composes the same name from LAB_OVERLAY_PROFILE (see
@@ -16,6 +16,8 @@ module.exports = async function startOverlayBridge({ BrowserWindow, userData }) 
   const profile = path.basename(userData);
   const pipeName = `\\\\.\\pipe\\${profile}-overlay-${token}`;
   let latest = null, sequence = 0, client = null, closed = false, ready = false;
+  // How long an unreachable game may hold the single connection.
+  const IDLE_TAKEOVER_MS = idleTakeoverMs;
   let server = null;
   let runtimeStatus = null, commandTime = 0, commandCount = 0;
   const win = new BrowserWindow({ show: false, width: protocol.WIDTH, height: 900, transparent: true, frame: false,
@@ -75,8 +77,18 @@ module.exports = async function startOverlayBridge({ BrowserWindow, userData }) 
   win.webContents.invalidate();
   server = net.createServer(socket => {
     // One test game at a time: a second process must not alter its controls.
-    if (client) { socket.destroy(); return; }
+    // But a game that crashed or was killed can leave its end of the pipe open
+    // with nobody behind it, and every game after that was refused and left
+    // waiting for a panel that would never arrive. A live add-on acknowledges
+    // every frame, so silence this long means the other end is gone.
+    if (client) {
+      if (Date.now() - (client.lastSeen || 0) < IDLE_TAKEOVER_MS) { socket.destroy(); return; }
+      const abandoned = client;
+      client = null;
+      abandoned.destroy();
+    }
     client = socket;
+    socket.lastSeen = Date.now();
     let pending = Buffer.alloc(0), lastInput = Date.now(), count = 0, mouseDown = false;
     socket.on('error', () => {});
     socket.on('close', () => {
@@ -88,6 +100,7 @@ module.exports = async function startOverlayBridge({ BrowserWindow, userData }) 
       }
     });
     socket.on('data', data => {
+      socket.lastSeen = Date.now();
       try {
         if (pending.length + data.length > 128000) throw Error('Input limit');
         pending = Buffer.concat([pending, data]);
@@ -136,5 +149,14 @@ module.exports = async function startOverlayBridge({ BrowserWindow, userData }) 
     fs.mkdirSync(userData, { recursive: true });
     fs.writeFileSync(endpoint, token, { mode: 0o600 });
   } catch (error) { close(); throw error; }
-  return { window: win, endpoint, pipeName, getFrame: () => latest, getStatus:()=>runtimeStatus, close };
+  // What the Overlay page shows instead of leaving someone to guess why the
+  // panel in the game says it is still waiting.
+  const state = () => ({
+    listening: Boolean(server && server.listening) && !closed,
+    connected: Boolean(client) && !closed,
+    game: Boolean(runtimeStatus),
+    endpoint,
+    pipeName
+  });
+  return { window: win, endpoint, pipeName, state, getFrame: () => latest, getStatus:()=>runtimeStatus, close };
 };

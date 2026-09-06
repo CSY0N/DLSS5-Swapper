@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('lab', {
   overlayInstall: (id) => ipcRenderer.invoke('overlay-install', id),
   overlayUninstall: (id) => ipcRenderer.invoke('overlay-uninstall', id),
   overlaySource: () => ipcRenderer.invoke('overlay-source'),
+  overlayBridge: () => ipcRenderer.invoke('overlay-bridge'),
   boot: () => ipcRenderer.invoke('boot'),
   setLang: (lang) => ipcRenderer.invoke('set-lang', lang),
   setTheme: (theme) => ipcRenderer.invoke('set-theme', theme),
