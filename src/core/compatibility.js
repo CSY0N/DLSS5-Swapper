@@ -36,6 +36,23 @@ function targetIssue(gameDir, exePath) {
   if (managedModRoot(gameDir, exePath)) return 'errManagedModpack';
   return null;
 }
+// Shader Model 5.1 arrived with the Windows 10 SDK, and the neural pass is
+// compiled as cs_5_1. A game that ships an older D3DCompiler_47.dll beside
+// its executable - Spider-Man Remastered carries 6.3.9600 from Windows 8.1 -
+// gets that copy loaded in preference to the current one in System32, and the
+// pass then compiles to nothing while everything else reports success.
+function oldShaderCompiler(exeDir, readVersion = pe.getFileVersion) {
+  const file = path.join(exeDir, 'D3DCompiler_47.dll');
+  let version;
+  try {
+    if (!fs.existsSync(file)) return null;
+    version = readVersion(file);
+  } catch { return null; }
+  // A version that cannot be read says nothing either way, and is left alone.
+  const major = /^(\d+)\./.exec(String(version || ''));
+  if (!major || Number(major[1]) >= 10) return null;
+  return { file, version };
+}
 function assertSafeTarget(gameDir, exePath) {
   const issue = targetIssue(gameDir, exePath);
   if (issue) throw problem(issue);
@@ -76,4 +93,4 @@ function assertLoaderCompatible(config, manifest) {
     throw problem('errLoaderConflict', path.relative(gameDir, file));
   }
 }
-module.exports = { targetIssue, hasAntiCheat, assertSafeTarget, assertAntiCheatConsent, assertLoaderCompatible, managedModRoot };
+module.exports = { targetIssue, hasAntiCheat, oldShaderCompiler, assertSafeTarget, assertAntiCheatConsent, assertLoaderCompatible, managedModRoot };
