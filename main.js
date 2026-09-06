@@ -387,6 +387,7 @@ ipcMain.handle('settings', () => {
     folders: state.folders, stateFile: stateFile(), posterDir: posterDir(), posterCount,
     roots: lastRoots,
     excludedRoots: state.excludedRoots || [],
+    hidden: [...(state.hidden || [])],
     autoScanDrives: state.autoScanDrives === true,
     groupGamesByStore: state.groupGamesByStore !== false
   };
@@ -566,6 +567,16 @@ ipcMain.handle('set-poster', async (_event, dir) => {
 ipcMain.handle('hide', (_event, dir) => {
   const state = loadState();
   if (!state.hidden.includes(dir)) state.hidden.push(dir);
+  saveState(state);
+  return true;
+});
+
+// Hiding a game only takes it out of the list, so it has to be possible to
+// put it back. Without this the only way out was resetting the whole library.
+ipcMain.handle('unhide', (_event, dir) => {
+  const state = loadState();
+  const wanted = path.resolve(String(dir)).toLowerCase();
+  state.hidden = (state.hidden || []).filter((item) => path.resolve(item).toLowerCase() !== wanted);
   saveState(state);
   return true;
 });

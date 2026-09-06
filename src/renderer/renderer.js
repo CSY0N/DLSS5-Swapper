@@ -450,6 +450,15 @@ async function renderSettings() {
           : `<div class="v">—</div>`}
       </div>
       <button class="ghost sm" id="setAddFolder">${t('setAdd')}</button></div>
+    <div class="set-row"><div><div class="k">${t('setHidden')}</div>
+        ${(info.hidden || []).length
+          ? `<div class="paths">${info.hidden.map((f) => `
+              <div class="path-row"><span>${esc(f)}</span>
+                <button class="ghost sm" data-unhide="${esc(f)}">${t('setUnhide')}</button>
+              </div>`).join('')}</div>`
+          : `<div class="v">${t('setHiddenNone')}</div>`}
+      </div>
+      <span class="d">${(info.hidden || []).length}</span></div>
     <div class="set-row"><div><div class="k">${t('setLibrary')}</div><div class="v">${esc(info.stateFile)}</div></div>
       <button class="ghost sm" id="setReset">${t('setReset')}</button></div>
     <div class="set-row"><div><div class="k">${t('setPosters')}</div><div class="v">${esc(info.posterDir)}</div></div>
@@ -484,6 +493,17 @@ async function renderSettings() {
       await window.lab.excludeRoot(b.dataset.unroot);
       renderSettings();
       load();
+    };
+  }
+  // Hiding a game is only about the list, so it has to be reversible.
+  for (const b of $('settings').querySelectorAll('[data-unhide]')) {
+    b.onclick = async () => {
+      b.disabled = true;
+      try {
+        await window.lab.unhide(b.dataset.unhide);
+        renderSettings();
+        load();
+      } catch (error) { log(error.message); b.disabled = false; }
     };
   }
   // A folder added for a quick look has to be removable, or the library is
@@ -1058,6 +1078,7 @@ async function performGameAction(action, dir) {
         renderRecent();
       }
     } else if (action === 'hide') {
+      if (!window.confirm(t('hideConfirm', game.name))) return;
       await window.lab.hide(dir);
       state.games = state.games.filter(g => g.dir !== dir);
       renderGames();
