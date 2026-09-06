@@ -77,11 +77,29 @@ const KNOWN = {
   }
 };
 
+// An add-on's identity is the hash of its contents, and the add-ons page asks
+// for it every time it is opened - which meant reading and hashing several
+// megabytes per file on each visit. A file is the same file while its path,
+// size and modification time are unchanged, so the answer is kept.
+const describedFiles = new Map();
+
 function describe(file, label) {
-  let buf;
-  try { buf = fs.readFileSync(file); } catch { return null; }
-  const version = pe.getFileVersion(file);
-  const id = crypto.createHash('sha1').update(buf).digest('hex').slice(0, 16);
+  let stat;
+  try { stat = fs.statSync(file); } catch { return null; }
+  const key = path.resolve(file).toLowerCase();
+  const stamp = `${stat.size}:${stat.mtimeMs}`;
+  const remembered = describedFiles.get(key);
+  let id, version, size;
+  if (remembered && remembered.stamp === stamp) {
+    ({ id, version, size } = remembered);
+  } else {
+    let buf;
+    try { buf = fs.readFileSync(file); } catch { return null; }
+    version = pe.getFileVersion(file);
+    id = crypto.createHash('sha1').update(buf).digest('hex').slice(0, 16);
+    size = buf.length;
+    describedFiles.set(key, { stamp, id, version, size });
+  }
   // This former bundled companion duplicates capabilities now provided by the
   // integrated RenoDX and Feeder routes and can conflict when loaded beside
   // them. Hide stale copies left behind by an older installation too.
@@ -96,7 +114,7 @@ function describe(file, label) {
     path: file,
     file: path.basename(file),
     label: known.name || label,
-    size: buf.length,
+    size,
     // A build with no version resource reports 0.0.0.0, which says nothing.
     version: version && version !== '0.0.0.0' ? version : null
   };
