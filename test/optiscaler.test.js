@@ -55,6 +55,14 @@ test('GPU requirements and process guards reject known unsupported/running targe
   assert.equal(guards.driverNeuralFault([{ name: 'NVIDIA GeForce RTX 5090', driver: '610.00' }]), false);
   assert.equal(guards.driverNeuralFault(null), false);
   assert.equal(guards.driverNames([{ name: 'RTX 5090', driver: '616.64' }]), 'RTX 5090 - 616.64');
+  // Blackwell is the requirement, not the name: the professional boards report
+  // themselves as "RTX PRO 6000 Blackwell" and were refused for not being 50xx.
+  assert.equal(guards.gpuModelSupported([{ name: 'NVIDIA RTX PRO 6000 Blackwell Workstation Edition', driver: '616.56' }]), true);
+  assert.equal(guards.gpuModelSupported([{ name: 'NVIDIA RTX PRO 5000 Blackwell', driver: '616.56' }]), true);
+  assert.equal(guards.driverSupported([{ name: 'NVIDIA RTX PRO 6000 Blackwell', driver: '616.56' }]), true);
+  // An older professional card of the same family name is still refused.
+  assert.equal(guards.gpuModelSupported([{ name: 'NVIDIA RTX PRO 6000 Ada Generation', driver: '617.00' }]), false);
+  assert.equal(guards.gpuModelSupported([{ name: 'NVIDIA RTX A6000', driver: '617.00' }]), false);
   const root = path.resolve('test-fixture-game');
   const game = path.join(root, 'Game.exe');
   const rows = [{ Name: 'Game.exe', ExecutablePath: game, ProcessId: -1 }, { Name: 'Game.exe', ExecutablePath: null, ProcessId: -2 }, { Name: 'Other.exe', ExecutablePath: path.resolve('elsewhere', 'Other.exe'), ProcessId: -3 }];

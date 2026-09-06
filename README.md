@@ -88,7 +88,7 @@ real panel, not a colour swatch.
 | --- | --- |
 | **System** | Windows 10/11 x64; compatible 32-bit and 64-bit games |
 | **ReShade / Feeder GPUs** | RTX 20 / 30 / 40 / 50; older-series support is reported by the bundled modified runtime's author |
-| **OptiScaler GPUs** | RTX 50 only, 64-bit games with native DLSS enabled; NVIDIA driver **616.56+** recommended |
+| **OptiScaler GPUs** | Blackwell only — RTX 50 series or RTX PRO Blackwell — with 64-bit games with native DLSS enabled; NVIDIA driver **616.56+** recommended |
 | **DirectX 12** | Native DLSS, Feeder, or eligible OptiScaler games |
 | **DirectX 11** | Feeder for 32/64-bit games; eligible OptiScaler games |
 | **DirectX 9 / 8** | DX9: 32/64-bit; DX8: 32-bit, through dgVoodoo2 → DX11 → Feeder |

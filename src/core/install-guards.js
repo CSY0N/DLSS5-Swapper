@@ -33,7 +33,12 @@ async function assertGameClosed(gameDir, exePath, runner = run) {
 // installed driver, so an older driver still runs an OptiScaler install - which
 // is what people who rolled back off 616.x to keep RenoDX working are seeing.
 const OPTI_DRIVER = 61656;
-const rtx50 = row => /\bRTX\s*50\d{2}\b/i.test(row.name);
+// The model needs a Blackwell card. That is the GeForce RTX 50 series and
+// also the professional RTX PRO Blackwell boards, which nvidia-smi reports
+// as "NVIDIA RTX PRO 6000 Blackwell ..." - a newer card than this gate was
+// written for, and it was refused for not being called 50-something.
+const blackwell = row => /\bRTX\s*50\d{2}\b/i.test(row.name) ||
+  (/\bRTX\s*PRO\b/i.test(row.name) && /\bblackwell\b/i.test(row.name));
 const driverNumber = row => {
   const [major, minor] = String(row.driver).split('.');
   return Number(major) * 100 + Number(minor);
@@ -48,8 +53,8 @@ function driverNeuralFault(rows) {
   return (rows || []).some(row => /nvidia|rtx|gtx/i.test(row.name) && driverNumber(row) >= NEURAL_FAULT_DRIVER);
 }
 function driverNames(rows) { return (rows || []).map(row => `${row.name} - ${row.driver}`).join(', '); }
-function gpuModelSupported(rows) { return rows.some(rtx50); }
-function driverSupported(rows) { return rows.some(row => rtx50(row) && driverNumber(row) >= OPTI_DRIVER); }
+function gpuModelSupported(rows) { return rows.some(blackwell); }
+function driverSupported(rows) { return rows.some(row => blackwell(row) && driverNumber(row) >= OPTI_DRIVER); }
 function gpuSupported(rows) { return gpuModelSupported(rows) && driverSupported(rows); }
 async function gpuInfo(runner = run) {
   try {
