@@ -596,7 +596,9 @@ function dlssValue(have, next, upToDate) {
     `<span class="arrow">→</span><span class="on">${esc(next)}</span>`;
 }
 
-const exeLine = (e) => `${e.rel}  —  ${e.apiLabel}  —  ${e.bitness || '?'}-bit  —  ${MB(e.size)}`;
+// An executable whose renderer could not be read says so, rather than showing
+// the word null where an API belongs.
+const exeLine = (e) => `${e.rel}  —  ${e.apiLabel || t('unknownApi')}  —  ${e.bitness || '?'}-bit  —  ${MB(e.size)}`;
 
 function chosenExe(d, dir) {
   const want = exeChoice.get(dir);
@@ -622,7 +624,7 @@ function exePicker(d, dir) {
                     data-path="${esc(e.path)}" role="option" title="${esc(e.rel)}">
               <span class="tick">${e.path === chosen.path ? '✓' : ''}</span>
               <span class="exe-name">${esc(e.rel)}</span>
-              <span class="exe-meta"><span>${esc(e.apiLabel)}</span><span>${e.bitness || '?'}-bit · ${MB(e.size)}</span></span>
+              <span class="exe-meta"><span>${esc(e.apiLabel || t('unknownApi'))}</span><span>${e.bitness || '?'}-bit · ${MB(e.size)}</span></span>
             </button>`).join('')}
         </div>
       </div>

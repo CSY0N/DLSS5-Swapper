@@ -79,3 +79,35 @@ test('an executable that does name its API is preferred over a silent one', asyn
   assert.equal(scan.chosen.apiLabel, 'DirectX 12');
   assert.notEqual(scan.chosen.via, 'undetected');
 });
+
+test('a hidden engine executable is offered in the picker beside the detected one', async (t) => {
+  const dir = game(t, 'scan-picker-');
+  // "launcher" is one of the names the scanner never treats as a game, so the
+  // detected one here is the front-end binary under its real name.
+  const front = silentPe(path.join(dir, 'Start.exe'), { size: 300 * 1024 });
+  const buf = fs.readFileSync(front);
+  buf.write('D3D11CreateDevice', 0x1000, 'ascii');
+  fs.writeFileSync(front, buf);
+  silentPe(path.join(dir, 'Game-Win64-Shipping.exe'), { size: 400 * 1024 });
+  silentPe(path.join(dir, 'f4se_loader.exe'), { size: 90 * 1024 });
+
+  const scan = await scanGame(dir);
+  assert.equal(scan.chosen.name, 'Start.exe', 'the detected one still wins automatically');
+  const names = scan.exeCandidates.map(e => e.name);
+  assert.ok(names.includes('Game-Win64-Shipping.exe'), 'the hidden engine binary is selectable');
+  assert.ok(names.includes('f4se_loader.exe'), 'a script extender is selectable');
+  for (const exe of scan.exeCandidates.filter(e => e.via === 'undetected')) {
+    assert.equal(exe.api, null);
+    assert.equal(exe.apiLabel, null);
+  }
+});
+
+test('a folder of tools with no game evidence offers nothing', async (t) => {
+  const dir = game(t, 'scan-tools-');
+  silentPe(path.join(dir, 'Tool.exe'));
+  silentPe(path.join(dir, 'Helper.exe'));
+
+  const scan = await scanGame(dir);
+  assert.equal(scan.chosen, null);
+  assert.equal(scan.exeCandidates.length, 0, 'nothing is offered for a folder that is not a game');
+});

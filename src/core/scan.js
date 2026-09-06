@@ -336,6 +336,11 @@ function selectPrimaryDlss(files, chosen) {
 // Prefer the executable a player normally launches. Several older games ship
 // separate SP and MP/Online programs in the same folder; installing beside the
 // multiplayer binary makes ReShade appear missing in the single-player game.
+// How many unreadable executables a folder may add to the picker. Enough for
+// a launcher, a script extender and a couple of engine binaries; not a menu
+// of every tool an installer left behind.
+const UNDETECTED_LIMIT = 8;
+
 function playableRoleScore(exe) {
   const rel = String(exe.rel || exe.path || '').toLowerCase();
   let score = 0;
@@ -459,19 +464,31 @@ async function scanGame(gameDir) {
   exeCandidates.length = 0;
   exeCandidates.push(...unique);
 
-  // Nothing named an API, but the folder ships DLSS or Streamline - so it is
-  // a game, and one whose renderer we simply could not read. Protected and
-  // launcher-fronted builds resolve Direct3D in a way that leaves no import
-  // and no string behind. Dropping those made the app say "not a game" about
-  // exactly the titles it exists for. The renderer is left unknown and the
-  // person chooses it on the game page, where every API is offered.
-  if (!exeCandidates.length && undetectedExes.length && (dlssFiles.length || streamlineFiles.length)) {
-    const best = [...undetectedExes].sort((a, b) =>
-      (playableRoleScore(b) - playableRoleScore(a)) || (a.depth - b.depth) || (b.size - a.size))[0];
-    exeCandidates.push({
-      ...best, api: null, apiLabel: null, via: 'undetected',
-      dynamic: true, dx12: false, emulator: null, apiChoices: []
-    });
+  // Executables that named no API at all. Protected builds, script extenders
+  // and launchers that start the real engine resolve Direct3D in a way that
+  // leaves no import and no string behind, and dropping them silently is what
+  // "no 3D executable" and "my game's exe is not in the list" come from.
+  //
+  // They are offered only once the folder is already known to be a game -
+  // either something else named an API, or the folder ships DLSS/Streamline -
+  // so an ordinary folder of tools is still not a game. The renderer is left
+  // unknown rather than guessed; the person picks it with the API override.
+  const isGameFolder = exeCandidates.length > 0 || dlssFiles.length > 0 || streamlineFiles.length > 0;
+  if (isGameFolder && undetectedExes.length) {
+    const offered = [];
+    for (const exe of [...undetectedExes].sort((a, b) =>
+      (playableRoleScore(b) - playableRoleScore(a)) || (a.depth - b.depth) || (b.size - a.size))) {
+      const key = exe.name.toLowerCase();
+      if (seenNames.has(key) || offered.length >= UNDETECTED_LIMIT) continue;
+      seenNames.add(key);
+      offered.push({
+        ...exe, api: null, apiLabel: null, via: 'undetected',
+        dynamic: true, dx12: false, emulator: null, apiChoices: []
+      });
+    }
+    // Always after the ones that did name an API, so the automatic choice is
+    // never taken away from a game that was being detected correctly.
+    exeCandidates.push(...offered);
   }
 
   const chosen = exeCandidates[0] || null;
