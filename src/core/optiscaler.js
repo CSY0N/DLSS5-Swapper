@@ -8,9 +8,9 @@ const ini = require('./feeder-config');
 const { download, digest } = require('./runtime-components');
 const { safePath } = require('./file-journal');
 const RELEASE = Object.freeze({
-  version: '0.1.1.5-dlssnr',
-  url: 'https://github.com/Dagherbou/OptiScaler_DLSSNR/releases/download/v0.1.1.5-dlssnr/OptiScaler-DLSSNR-v0.1.1.5-dlssnr.zip',
-  sha256: '735b10b4077bc187ba4d07d607e864349aca386344c6126aba61ced746d27ece',
+  version: '0.2.0-patch1',
+  url: 'https://github.com/Dagherbou/OptiScaler_DLSSNR/releases/download/v0.2.0-patch1/OptiScaler-DLSSNR-v0.2.0-onimusha-fix.zip',
+  sha256: '5db547216fa8a7dbd8ab0a193da1e3bce0ea4bd71f91189afa4ed2ede8bb9561',
   licenseUrl: 'https://raw.githubusercontent.com/Dagherbou/OptiScaler_DLSSNR/393e070/LICENSE',
   licenseHash: '3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986'
 });

@@ -27,10 +27,20 @@ async function assertGameClosed(gameDir, exePath, runner = run) {
   const matches = matchingProcesses(Array.isArray(data) ? data : [data], gameDir, exePath);
   if (matches.length) throw Object.assign(new Error(`Close the game and helper first: ${matches.map(p => p.Name).join(', ')}`), { code: 'errGameRunning' });
 }
-function gpuSupported(rows) {
-  return rows.some(row => /\bRTX\s*50\d{2}\b/i.test(row.name) &&
-    Number(String(row.driver).split('.')[0]) * 100 + Number(String(row.driver).split('.')[1]) >= 61656);
-}
+// Two separate questions, because only one of them is a hard requirement.
+// The card is: DLSS-NR runs on the RTX 50 path. The driver is not: the model
+// file (nvngx_dlssnr.dll) ships with this app rather than being taken from the
+// installed driver, so an older driver still runs an OptiScaler install - which
+// is what people who rolled back off 616.x to keep RenoDX working are seeing.
+const OPTI_DRIVER = 61656;
+const rtx50 = row => /\bRTX\s*50\d{2}\b/i.test(row.name);
+const driverNumber = row => {
+  const [major, minor] = String(row.driver).split('.');
+  return Number(major) * 100 + Number(minor);
+};
+function gpuModelSupported(rows) { return rows.some(rtx50); }
+function driverSupported(rows) { return rows.some(row => rtx50(row) && driverNumber(row) >= OPTI_DRIVER); }
+function gpuSupported(rows) { return gpuModelSupported(rows) && driverSupported(rows); }
 async function gpuInfo(runner = run) {
   try {
     const output = await runner('nvidia-smi.exe', ['--query-gpu=name,driver_version', '--format=csv,noheader']);
@@ -56,4 +66,4 @@ function antiCheatPresent(gameDir) {
   }
   return false;
 }
-module.exports = { assertGameClosed, matchingProcesses, gpuInfo, gpuSupported, antiCheatPresent };
+module.exports = { assertGameClosed, matchingProcesses, gpuInfo, gpuSupported, gpuModelSupported, driverSupported, antiCheatPresent };

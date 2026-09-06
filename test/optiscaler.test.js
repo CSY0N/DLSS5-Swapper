@@ -41,6 +41,12 @@ test('GPU requirements and process guards reject known unsupported/running targe
   assert.equal(guards.gpuSupported([{ name: 'NVIDIA GeForce RTX 5090 Laptop GPU', driver: '617.00' }]), true);
   assert.equal(guards.gpuSupported([{ name: 'NVIDIA GeForce RTX 4090', driver: '617.00' }]), false);
   assert.equal(guards.gpuSupported([{ name: 'NVIDIA GeForce RTX 5090', driver: '616.55' }]), false);
+  // The card is refused; an older driver is only a warning, so the install path
+  // asks these two separately.
+  assert.equal(guards.gpuModelSupported([{ name: 'NVIDIA GeForce RTX 5090', driver: '610.00' }]), true);
+  assert.equal(guards.driverSupported([{ name: 'NVIDIA GeForce RTX 5090', driver: '610.00' }]), false);
+  assert.equal(guards.gpuModelSupported([{ name: 'NVIDIA GeForce RTX 4090', driver: '617.00' }]), false);
+  assert.equal(guards.driverSupported([{ name: 'NVIDIA GeForce RTX 5080', driver: '617.00' }]), true);
   const root = path.resolve('test-fixture-game');
   const game = path.join(root, 'Game.exe');
   const rows = [{ Name: 'Game.exe', ExecutablePath: game, ProcessId: -1 }, { Name: 'Game.exe', ExecutablePath: null, ProcessId: -2 }, { Name: 'Other.exe', ExecutablePath: path.resolve('elsewhere', 'Other.exe'), ProcessId: -3 }];

@@ -6,7 +6,7 @@ OptiScaler DLSS-NR is an independently licensed project, not part of this
 application's MIT-licensed implementation:
 https://github.com/Dagherbou/OptiScaler_DLSSNR
 
-The optional backend downloads the official v0.1.1.5-dlssnr archive directly
+The optional backend downloads the official v0.2.0-patch1 archive directly
 from its release page, with a pinned SHA-256 checksum. No upstream executable,
 DLL or source is bundled with Swapper, and its setup/removal scripts are not
 executed. Upstream binaries remain unmodified; configuration and tracked
