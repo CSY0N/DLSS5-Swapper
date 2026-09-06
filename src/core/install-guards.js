@@ -16,14 +16,44 @@ function matchingProcesses(processes, gameDir, exePath) {
     return [exePath ? path.basename(exePath).toLowerCase() : null, 'dlss5-feed-host64.exe'].includes(String(p.Name).toLowerCase());
   });
 }
-async function assertGameClosed(gameDir, exePath, runner = run) {
+// Windows keeps a running executable open for writing, so a file that can be
+// opened for writing is not the image of a running process. That is the
+// question this check exists to answer, and it needs neither PowerShell nor
+// WMI - which is what makes it the right fallback when those are slow,
+// restricted or missing.
+function executableLocked(exePath) {
+  let handle;
+  try {
+    handle = fs.openSync(exePath, 'r+');
+    return false;
+  } catch (error) {
+    // Locked by a running process. Anything else - no such file, no rights to
+    // it, a read-only volume - says nothing about the game and must not block
+    // an install.
+    return error && (error.code === 'EBUSY' || error.code === 'EPERM' || error.code === 'EACCES');
+  } finally {
+    if (handle !== undefined) { try { fs.closeSync(handle); } catch { /* already gone */ } }
+  }
+}
+
+async function assertGameClosed(gameDir, exePath, runner = run, locked = executableLocked) {
   const powershell = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32/WindowsPowerShell/v1.0/powershell.exe');
   let data;
   try {
     const output = await runner(powershell, ['-NoProfile', '-NonInteractive', '-Command',
       "$ErrorActionPreference='Stop'; @(Get-CimInstance Win32_Process | Select-Object ProcessId,Name,ExecutablePath) | ConvertTo-Json -Compress"]);
     data = JSON.parse(output || '[]');
-  } catch (cause) { throw Object.assign(new Error('errProcessCheck'), { code: 'errProcessCheck', cause }); }
+  } catch {
+    // The process list is unavailable: PowerShell restricted by policy, a cold
+    // WMI call past its timeout, or a machine where it simply fails. This used
+    // to refuse the install outright, which is a diagnostic becoming a wall -
+    // people with a closed game could not install at all. Fall back to asking
+    // the executable itself.
+    if (exePath && locked(exePath)) {
+      throw Object.assign(new Error('Close the game first: its executable is in use.'), { code: 'errGameRunning' });
+    }
+    return;
+  }
   const matches = matchingProcesses(Array.isArray(data) ? data : [data], gameDir, exePath);
   if (matches.length) throw Object.assign(new Error(`Close the game and helper first: ${matches.map(p => p.Name).join(', ')}`), { code: 'errGameRunning' });
 }
@@ -81,4 +111,4 @@ function antiCheatPresent(gameDir) {
   }
   return false;
 }
-module.exports = { assertGameClosed, matchingProcesses, gpuInfo, gpuSupported, gpuModelSupported, driverSupported, driverNeuralFault, driverNames, antiCheatPresent };
+module.exports = { assertGameClosed, executableLocked, matchingProcesses, gpuInfo, gpuSupported, gpuModelSupported, driverSupported, driverNeuralFault, driverNames, antiCheatPresent };
