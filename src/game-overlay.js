@@ -17,7 +17,7 @@ function prepare({library,target,route}){
   return {entry,file,alreadyPresent:fs.existsSync(file)};
 }
 async function attach({library,target,gameDir,manifest,saveManifest,plan}){
-  const installed=library.install('builtin',target.path);
+  const installed=library.install('builtin',target.path,target.bitness);
   // Only files newly added by THIS game install belong to Restore originals.
   const rel=path.relative(gameDir,installed.file);
   if(rel.startsWith('..')||path.isAbsolute(rel))throw Error('Overlay escaped the selected game.');
