@@ -676,6 +676,41 @@ function installLabel(d, pick, dir) {
   return route === 'optiscaler' ? t('installOpti') : t('install');
 }
 
+// Every note about this game in one box that can be put away. A warning still
+// says so on the outside, because something that can cost an account must not
+// be hidden behind a closed lid - only the reading of it is optional.
+const NOTES_OPEN = 'sheet-notes-open';
+const notesOpen = () => { try { return localStorage.getItem(NOTES_OPEN) === '1'; } catch { return false; } };
+
+function notesBox(blocks, hasWarning) {
+  const notes = blocks.filter(Boolean);
+  if (!notes.length) return '';
+  const open = notesOpen() || hasWarning;
+  return `<div class="sheet-notes${hasWarning ? ' has-warning' : ''}" id="sheetNotes">
+    <button type="button" class="sheet-notes-head" id="sheetNotesToggle" aria-expanded="${open}" aria-controls="sheetNotesBody">
+      <svg viewBox="0 0 24 24" aria-hidden="true">${hasWarning
+        ? '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>'
+        : '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>'}</svg>
+      <span>${t(hasWarning ? 'notesWarning' : 'notesTitle')}</span>
+      <i class="sheet-notes-count">${notes.length}</i>
+      <svg class="sheet-notes-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+    <div class="sheet-notes-body" id="sheetNotesBody"${open ? '' : ' hidden'}>${notes.join('')}</div>
+  </div>`;
+}
+
+// Wired after the sheet is painted; the choice is remembered for next time.
+function wireNotes() {
+  const toggle = $('sheetNotesToggle'), body = $('sheetNotesBody');
+  if (!toggle || !body) return;
+  toggle.onclick = () => {
+    const open = body.hidden;
+    body.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+    try { localStorage.setItem(NOTES_OPEN, open ? '1' : '0'); } catch { /* storage off */ }
+  };
+}
+
 function installOptions(d, pick, dir) {
   const warning = (d.antiCheatWarning || pick?.antiCheatWarning)
     ? `<div class="emu-note anti-cheat-warning" role="alert"><b>${t('antiCheatWarningTitle')}</b><span>${t('antiCheatWarning')}</span></div>` : '';
@@ -692,7 +727,7 @@ function installOptions(d, pick, dir) {
   const apiHint = `<div class="emu-note" id="apiHint"><span>${t('apiOverrideHint')}</span>${api.api === 'vulkan' && !opti ? `<span>${t('apiVulkanHint')}</span>` : ''}</div>`;
   // Keep the picker available even when automatic detection yields DX10 or an
   // unsupported renderer. Otherwise the user cannot correct that detection.
-  if (!routes.length) return `<div class="install-options">${apiField}</div>${apiHint}<div class="emu-note">${t('unsupportedRendererHint')}</div>${warning}`;
+  if (!routes.length) return `<div class="install-options">${apiField}</div>${notesBox([apiHint, `<div class="emu-note">${t('unsupportedRendererHint')}</div>`, warning], Boolean(warning))}`;
   return `
     <div class="install-options">
       ${apiField}
@@ -704,17 +739,19 @@ function installOptions(d, pick, dir) {
         `<option value="${item}"${item === route ? ' selected' : ''}>${t(item === 'feeder' ? 'routeFeeder' : 'routeNative')}</option>`).join('')}</select></label>
       ` : ''}
     </div>
-    ${apiHint}
-    <div class="emu-note backend-note" id="backendHint"><span>${t(opti ? 'optiHint' : 'backendHint')}</span>
-      ${optiReason ? `<span>${t(optiReason)}</span>` : ''}
-      ${route === 'native' ? `<span>${t('nativeEffectsHint')}</span>` : ''}
-      ${opti && (api.api === 'vulkan' || api.label === 'DirectX 11') ? `<span>${t('optiBridgeHint')}</span>` : ''}
-      ${opti && api.api === 'vulkan' ? `<span>${t('optiVulkanHint')}</span>` : ''}
-    </div>
-    ${pick.installIssue ? `<div class="emu-note compatibility-warning" role="alert">${t(pick.installIssue)}</div>` : ''}
-    ${warning}
-    ${['d3d8', 'd3d9'].includes(api.api) ? `<div class="emu-note">${t('legacyRendererHint')}</div>` : ''}
-    ${pick.emulator ? `<div class="emu-note"><b>${esc(pick.emulator.name)} · ${esc(pick.emulator.system)}</b><span>${esc(pick.emulator.hint)}</span><span>${t('emulatorDepthHint')}</span>${pick.emulator.key === 'xenia' ? `<span>${t('xeniaUiHint')}</span>` : ''}</div>` : ''}`;
+    ${notesBox([
+      `<div class="emu-note" id="apiHint"><span>${t('apiOverrideHint')}</span>${api.api === 'vulkan' && !opti ? `<span>${t('apiVulkanHint')}</span>` : ''}</div>`,
+      `<div class="emu-note backend-note" id="backendHint"><span>${t(opti ? 'optiHint' : 'backendHint')}</span>
+        ${optiReason ? `<span>${t(optiReason)}</span>` : ''}
+        ${route === 'native' ? `<span>${t('nativeEffectsHint')}</span>` : ''}
+        ${opti && (api.api === 'vulkan' || api.label === 'DirectX 11') ? `<span>${t('optiBridgeHint')}</span>` : ''}
+        ${opti && api.api === 'vulkan' ? `<span>${t('optiVulkanHint')}</span>` : ''}
+      </div>`,
+      pick.installIssue ? `<div class="emu-note compatibility-warning" role="alert">${t(pick.installIssue)}</div>` : '',
+      warning,
+      ['d3d8', 'd3d9'].includes(api.api) ? `<div class="emu-note">${t('legacyRendererHint')}</div>` : '',
+      pick.emulator ? `<div class="emu-note"><b>${esc(pick.emulator.name)} · ${esc(pick.emulator.system)}</b><span>${esc(pick.emulator.hint)}</span><span>${t('emulatorDepthHint')}</span>${pick.emulator.key === 'xenia' ? `<span>${t('xeniaUiHint')}</span>` : ''}</div>` : ''
+    ], Boolean(warning || pick.installIssue))}`;
 }
 
 // A newer release exists, said once, in the corner. The link is the same
@@ -840,6 +877,7 @@ async function openSheet(dir, keepLog = false) {
       else if (r && r.message) $('statusText').textContent = r.message;
     } catch (e) { $('statusText').textContent = e.message; } finally { button.disabled = false; }
   };
+  wireNotes();
   wireExePicker(dir);
   const apiSelect = $('apiChoice');
   if (apiSelect) apiSelect.onchange = async () => {

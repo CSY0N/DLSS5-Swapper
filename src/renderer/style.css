@@ -1767,3 +1767,30 @@ body { cursor: default; }
 .ctx-menu button[data-menu="hide"]:hover:not(:disabled) svg { color: #e05a5a; }
 
 @media (prefers-reduced-motion: reduce) { .ctx-menu { animation: none } }
+
+/* ---------------- notes about a game ---------------- */
+/* Five stacked boxes became one that can be put away. A warning still says so
+   on the outside: what can cost an account is not hidden behind a closed lid. */
+.sheet-notes { border: 1px solid var(--line); border-radius: 14px; background: var(--glass); overflow: hidden; }
+.sheet-notes.has-warning { border-color: rgba(226,90,90,.42); background: rgba(226,90,90,.06); }
+.sheet-notes-head {
+  display: flex; align-items: center; gap: 11px; width: 100%; cursor: pointer;
+  padding: 12px 14px; border: 0; background: transparent; color: var(--text);
+  font: inherit; font-size: 13.5px; font-weight: 620; text-align: start;
+  transition: background .14s ease;
+}
+.sheet-notes-head:hover { background: rgba(255,255,255,.04); }
+.sheet-notes-head > svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; color: var(--muted); }
+.sheet-notes.has-warning .sheet-notes-head, .sheet-notes.has-warning .sheet-notes-head > svg { color: #e05a5a; }
+.sheet-notes-head > span { flex: 1; }
+.sheet-notes-count {
+  font-style: normal; font-size: 12px; font-weight: 700; min-width: 22px; text-align: center;
+  padding: 2px 7px; border-radius: 999px; background: rgba(255,255,255,.08); color: var(--muted);
+}
+.sheet-notes.has-warning .sheet-notes-count { background: rgba(226,90,90,.18); color: #e05a5a; }
+.sheet-notes-chevron { width: 16px; height: 16px; transition: transform .2s cubic-bezier(.3,1.1,.4,1); }
+.sheet-notes-head[aria-expanded="true"] .sheet-notes-chevron { transform: rotate(180deg); }
+.sheet-notes-body { display: grid; gap: 10px; padding: 2px 12px 12px; animation: community-rise .22s cubic-bezier(.22,.9,.3,1) both; }
+/* Inside the box the notes are plain: the box carries the edge now. */
+.sheet-notes-body .emu-note { border-radius: 11px; }
+@media (prefers-reduced-motion: reduce) { .sheet-notes-body, .sheet-notes-chevron { animation: none; transition: none } }
