@@ -276,23 +276,27 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round
 .community-close:hover { background: rgba(226,90,90,.85); transform: scale(1.06); }
 
 /* One chip per route: a coloured mark, the name, its three counts. */
-.community-route-counts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.community-route-counts { display: flex; flex-wrap: nowrap; gap: 8px; margin-top: 6px; }
 .community-route-count {
-  display: inline-flex; align-items: center; gap: 12px; padding: 10px 12px;
-  border-radius: 14px; border: 1px solid rgba(255,255,255,.14); background: rgba(12,18,26,.55);
+  display: inline-flex; align-items: center; gap: 9px; padding: 7px 9px; min-width: 0; flex: 1 1 0;
+  border-radius: 12px; border: 1px solid rgba(255,255,255,.14); background: rgba(12,18,26,.55);
   backdrop-filter: blur(10px); transition: border-color .18s ease, transform .18s cubic-bezier(.3,1.2,.4,1);
 }
 .community-route-count:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.3); }
 .community-route-tile {
-  width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; flex: none; color: #fff;
+  width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; flex: none; color: #fff;
 }
-.community-route-tile svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.community-route-tile svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .community-route-count.feeder .community-route-tile { background: linear-gradient(140deg,#1f7a3f,#0f4a26); }
 .community-route-count.renodx .community-route-tile { background: linear-gradient(140deg,#6c3fd0,#3b1f78); }
 .community-route-count.optiscaler .community-route-tile { background: linear-gradient(140deg,#1f6fd0,#123f7a); }
-.community-route-copy { display: grid; gap: 5px; }
-.community-route-copy b { color: #fff; font-size: 14px; }
-.community-route-go { width: 16px; height: 16px; fill: none; stroke: rgba(255,255,255,.5); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.community-route-copy { display: grid; gap: 3px; min-width: 0; }
+.community-route-copy b { color: #fff; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The counts inside a chip are read next to each other, not across the card. */
+.community-route-count .community-counts { gap: 10px; font-size: 13px; text-shadow: none; }
+.community-route-count .community-counts span { gap: 5px; }
+.community-route-count .community-dot { width: 8px; height: 8px; }
+.community-route-go { width: 13px; height: 13px; flex: none; margin-inline-start: auto; fill: none; stroke: rgba(255,255,255,.5); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 [dir="rtl"] .community-route-go { transform: scaleX(-1); }
 
 /* A comment. The sheen sweeps across it under the pointer. */
