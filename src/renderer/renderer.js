@@ -418,85 +418,9 @@ $('dlgSave').onclick = async () => {
 };
 
 
-// Name and icon are what a person is shown under beside their report. The icons
-// are drawn here rather than shipped as files: no images to load, no images to
-// moderate, and they take their colour from the theme like everything else.
-const AVATAR_SHAPES = [
-  'M12 3 21 20H3z', 'M12 2a10 10 0 1 0 .01 20A10 10 0 0 0 12 2z', 'M4 4h16v16H4z',
-  'M12 2 22 12 12 22 2 12z', 'M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z',
-  'M12 21s-8-5-8-11a5 5 0 0 1 8-3 5 5 0 0 1 8 3c0 6-8 11-8 11z', 'M3 12h18M12 3v18',
-  'M6 3h12v18l-6-4-6 4z', 'M12 3a9 9 0 1 0 9 9h-9z', 'M4 12a8 8 0 0 1 16 0 8 8 0 0 1-16 0zm4 0h8',
-  'M5 5h6v6H5zm8 8h6v6h-6z', 'M12 2l9 5v10l-9 5-9-5V7z', 'M3 18 9 6l6 12M8 14h9',
-  'M4 20 12 4l8 16z M8 20h8', 'M12 4v16M4 12h16M6.3 6.3l11.4 11.4M17.7 6.3 6.3 17.7',
-  'M7 4h10v4a5 5 0 0 1-10 0zM9 18h6v2H9z', 'M4 8h16v8H4zm4 0v8m8-8v8',
-  'M12 2a6 6 0 0 1 6 6c0 4-6 14-6 14S6 12 6 8a6 6 0 0 1 6-6z', 'M2 12h4l3-8 6 16 3-8h4',
-  'M12 3a9 9 0 0 1 0 18 5 5 0 0 0 0-18z', 'M5 19V9l7-6 7 6v10z', 'M4 4l16 16M20 4 4 20',
-  'M12 5a7 7 0 1 1 0 14 7 7 0 0 1 0-14zm0 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6z', 'M3 6h18v12H3zm5 0v12'
-];
-
-function avatarSvg(index, size = 26) {
-  const shape = AVATAR_SHAPES[index % AVATAR_SHAPES.length];
-  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true"><path d="${shape}"/></svg>`;
-}
-window.avatarSvg = avatarSvg;
-
-async function wireProfile() {
-  const grid = $('avatarGrid'), input = $('profileNameInput'), status = $('profileStatus'), save = $('profileSave');
-  if (!grid || !window.lab.communityProfile) return;
-  let profile = { name: null, icon: 0 };
-  try { profile = await window.lab.communityProfile(); } catch { /* offline: the picker still works */ }
-
-  let chosen = Number(profile.icon) || 0;
-  grid.innerHTML = AVATAR_SHAPES.map((_, index) =>
-    `<button type="button" class="avatar${index === chosen ? ' on' : ''}" role="radio" data-icon="${index}"
-       aria-checked="${index === chosen}" aria-label="${t('profileIcon', index + 1)}">${avatarSvg(index)}</button>`).join('');
-  input.value = profile.name || '';
-  if (profile.tag) status.textContent = t('profileShownAs', profile.name || t('profileAnonymous'), profile.tag);
-
-  grid.onclick = (event) => {
-    const button = event.target.closest('.avatar');
-    if (!button) return;
-    chosen = Number(button.dataset.icon);
-    for (const other of grid.querySelectorAll('.avatar')) {
-      const on = other === button;
-      other.classList.toggle('on', on);
-      other.setAttribute('aria-checked', String(on));
-    }
-  };
-
-  save.onclick = async () => {
-    save.disabled = true;
-    status.textContent = '';
-    status.classList.remove('bad');
-    try {
-      const saved = await window.lab.communitySaveProfile({ name: input.value.trim() || null, icon: chosen });
-      status.textContent = t('profileShownAs', saved.name || t('profileAnonymous'), saved.tag || '');
-    } catch (error) {
-      // The server refuses reserved names and a rename inside a week; both are
-      // worth reading rather than swallowing.
-      status.textContent = error.message;
-      status.classList.add('bad');
-    } finally {
-      save.disabled = false;
-    }
-  };
-}
-
 async function renderSettings() {
   const info = await window.lab.settings();
   $('settings').innerHTML = `
-    <div class="set-row community-profile" id="profileRow">
-      <div>
-        <div class="k">${t('profileTitle')}</div>
-        <div class="v" id="profileHint">${t('profileHint')}</div>
-        <div class="avatar-grid" id="avatarGrid" role="radiogroup" aria-labelledby="profileHint"></div>
-        <label class="profile-name"><span>${t('profileName')}</span>
-          <input id="profileNameInput" type="text" maxlength="24" autocomplete="off" spellcheck="false"
-                 placeholder="${t('profileNamePlaceholder')}"></label>
-        <p class="profile-status" id="profileStatus" role="status" aria-live="polite"></p>
-      </div>
-      <button class="glass-btn sm" id="profileSave" type="button">${t('save')}</button>
-    </div>
     <div class="set-row"><div><div class="k">${t('setGroupGames')}</div>
       <div class="v" id="setGroupGamesHint">${t('setGroupGamesHint')}</div></div>
       <button class="setting-switch" id="setGroupGames" type="button" role="switch"
@@ -564,7 +488,6 @@ async function renderSettings() {
     await load();
     await renderSettings();
   };
-  await wireProfile();
   $('setAddFolder').onclick = async () => { if (await window.lab.addFolder()) load(); };
   for (const b of $('settings').querySelectorAll('[data-unroot]')) {
     b.onclick = async () => {

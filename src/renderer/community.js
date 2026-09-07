@@ -21,7 +21,16 @@
     }
   };
   const avatars = ['🎮','🚀','⚡','🛡️','🔥','⭐','🎯','🕹️','👾','🤖','🐉','🦊','🐺','🦁','🦅','🐙','🌌','🌙','☀️','💎','🔧','🧪','🏁','🎧'];
-  const state = { cards: [], filters: { q: '', route: 'all', api: 'all', status: 'all' }, active: null, etag: null, timer: null, report: null, verdict: null };
+  // The heart first: it is the one people reach for. The rest keep the order
+  // they have always had, so nobody's muscle memory moves.
+  const REACTIONS = ['❤️', '👍', '🔥', '🎉', '😕'];
+  const MINE_KEY = 'community-reactions';
+  // Which reactions this install has pressed. Local because the card itself is
+  // cached and shared; the server stays the authority on the counts, and a
+  // stale entry here only costs one request it ignores.
+  const readMine = () => { try { return JSON.parse(localStorage.getItem(MINE_KEY)) || {}; } catch { return {}; } };
+  const state = { cards: [], filters: { q: '', route: 'all', api: 'all', status: 'all' }, active: null, etag: null, timer: null, report: null, verdict: null, mine: readMine() };
+  const saveMine = () => { try { localStorage.setItem(MINE_KEY, JSON.stringify(state.mine)); } catch { /* private window, or storage off */ } };
   const text = () => L[(window.i18n?.getLang?.() || 'en').startsWith('ar') ? 'ar' : 'en'];
   const totals = verdicts => Object.values(verdicts || {}).reduce((sum, row) => ({ green: sum.green + (row.green || 0), yellow: sum.yellow + (row.yellow || 0), red: sum.red + (row.red || 0) }), { green: 0, yellow: 0, red: 0 });
   const statusClass = status => ['working', 'mixed', 'broken'].includes(status) ? status : 'unknown';
@@ -75,7 +84,14 @@
 
   function commentMarkup(comment) {
     const by = comment.by || {};
-    const reactions = ['👍','🔥','🎉','😕'].map(emoji => `<button type="button" data-reaction="${emoji}" data-report="${comment.id}">${emoji}<span>${comment.reactions?.[emoji] || ''}</span></button>`).join('');
+    // Which of these this install has pressed is remembered here rather than
+    // asked of the server: the card is cached for everyone alike, and one
+    // person's own reactions have no business in a shared response.
+    const reactions = REACTIONS.map(emoji => {
+      const on = state.mine[`${comment.id}:${emoji}`] === true;
+      return `<button type="button" class="${on ? 'on' : ''}" data-reaction="${emoji}" data-report="${comment.id}"
+        aria-pressed="${on}">${emoji}<span>${comment.reactions?.[emoji] || ''}</span></button>`;
+    }).join('');
     return `<article class="community-comment-card">
       <header>${avatar(by.icon)}<div><b>${esc(by.name || text().unnamed)} <small>#${esc(by.tag || '----')}</small></b><span>${esc(comment.route || '')} · ${esc((comment.api || '').toUpperCase())}</span></div><i class="community-dot ${comment.verdict}"></i></header>
       ${comment.comment ? `<p>${esc(comment.comment)}</p>` : ''}
@@ -172,7 +188,13 @@
     $('communityClear').onclick = () => { state.filters = { q: '', route: 'all', api: 'all', status: 'all' }; for (const id of ['communitySearch','communityRoute','communityApi','communityStatus']) $(id).value = id === 'communitySearch' ? '' : 'all'; render(); };
     $('communityCards').onclick = event => { const card = event.target.closest('[data-community-card]'); if (card) openCard(card.dataset.communityCard); };
     $('communityCardClose').onclick = closeCard; $('communityCardDialog').addEventListener('cancel', event => { event.preventDefault(); closeCard(); });
-    $('communityCardBody').onclick = async event => { const button = event.target.closest('[data-reaction]'); if (!button) return; button.disabled = true; const response = await window.lab.communityReaction(button.dataset.report, button.dataset.reaction, true); button.disabled = false; if (!response?.ok) return void ($('communityCardMeta').textContent = response?.message || text().reactionFailed); const latest = await window.lab.communityCard(state.active.key, null); if (latest?.ok) paintCard(latest.card); };
+    $('communityCardBody').onclick = async event => { const button = event.target.closest('[data-reaction]'); if (!button) return;
+      const key = `${button.dataset.report}:${button.dataset.reaction}`;
+      const on = state.mine[key] !== true;
+      button.disabled = true;
+      const response = await window.lab.communityReaction(button.dataset.report, button.dataset.reaction, on);
+      button.disabled = false;
+      if (response?.ok) { if (on) state.mine[key] = true; else delete state.mine[key]; saveMine(); } if (!response?.ok) return void ($('communityCardMeta').textContent = response?.message || text().reactionFailed); const latest = await window.lab.communityCard(state.active.key, null); if (latest?.ok) paintCard(latest.card); };
     $('communityReportClose').onclick = closeReport; $('communityReportCancel').onclick = closeReport; $('communityReportDialog').addEventListener('cancel', event => { event.preventDefault(); closeReport(); });
     $('communityReportRoute').onchange = updatePrivacy; $('communityReportApi').onchange = updatePrivacy;
     document.querySelector('.community-verdicts').onclick = event => { const button = event.target.closest('[data-verdict]'); if (!button) return; state.verdict = button.dataset.verdict; document.querySelectorAll('.community-verdicts button').forEach(item => item.classList.toggle('selected', item === button)); };

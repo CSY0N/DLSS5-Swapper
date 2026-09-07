@@ -41,7 +41,10 @@ let historyStore;
 const history = () => historyStore || (historyStore = new HistoryStore(path.join(app.getPath('userData'), 'history.jsonl')));
 let communityClient;
 const community = () => communityClient || (communityClient = new CommunityClient({
-  file: path.join(app.getPath('userData'), 'community.json')
+  file: path.join(app.getPath('userData'), 'community.json'),
+  // Only ever set by hand, to point a development build at a server running
+  // locally. Unset - which is every installed copy - it is the real one.
+  baseUrl: process.env.DLSS5_COMMUNITY_API || undefined
 }));
 const communityAnswer = async work => {
   try { return { ok: true, ...(await work()) }; }
