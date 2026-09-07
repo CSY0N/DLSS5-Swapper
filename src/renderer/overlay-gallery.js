@@ -39,6 +39,15 @@ async function showBridge(){
  const box=$('olBridge'); if(!box)return;
  let state=null;
  try{const r=await window.lab.overlayBridge(); if(r&&r.ok)state=r.value;}catch{}
+ // A missing add-on outranks anything about the service: it is the reason no
+ // game will ever attach, and it used to leave the page saying "ready".
+ if(state&&state.addon===false){
+  box.dataset.state='off';
+  box.textContent=text(
+   `The overlay add-on is missing from this app, so no game can load it: ${state.addonFile||''}. Antivirus software removes this file - restore it from your antivirus quarantine and add an exclusion, or reinstall DLSS 5 Swapper.`,
+   `ملف الأوفرلاي مفقود من البرنامج، فلا تستطيع أي لعبة تحميله: ${state.addonFile||''}. برامج الحماية تحذف هذا الملف - استعده من الحجر الصحي وأضف استثناءً، أو أعد تثبيت البرنامج.`);
+  return;
+ }
  if(!state||!state.listening){
   box.dataset.state='off';
   box.textContent=text('Overlay service is not running. Restart DLSS 5 Swapper, then press the hotkey in game.',
