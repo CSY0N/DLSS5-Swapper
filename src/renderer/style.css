@@ -1397,7 +1397,7 @@ body { cursor: default; }
 }
 .community-quote {
   position: relative; display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start;
-  padding: 13px 15px 13px 17px; border-radius: 13px;
+  padding: 14px 16px; border-radius: 14px;
   background: color-mix(in srgb, var(--accent) 6%, var(--glass));
   border: 1px solid var(--line);
 }
@@ -1414,15 +1414,10 @@ body { cursor: default; }
 .community-quote p { margin: 5px 0 0; font-size: 14px; line-height: 1.45; }
 .community-about { display: block; margin-top: 7px; color: var(--muted); font-size: 12px; }
 
-.community-replies { display: grid; gap: 10px; padding-inline-start: 30px; position: relative; }
-/* One line down the side, so a reply is visibly under the thing it answers. */
-.community-replies::before {
-  content: ''; position: absolute; inset-block: 6px; inset-inline-start: 11px; width: 2px;
-  border-radius: 2px; background: linear-gradient(to bottom, var(--line), transparent);
-}
+.community-replies { display: grid; gap: 10px; }
 .community-reply {
   display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start;
-  border: 1px solid var(--line); border-radius: 13px; padding: 12px 14px; background: var(--glass);
+  border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; background: var(--glass);
   animation: community-rise .3s cubic-bezier(.22,.9,.3,1) both;
 }
 .community-reply header { display: flex; align-items: center; gap: 8px; }
@@ -1442,9 +1437,9 @@ body { cursor: default; }
   display: block; width: 100%; resize: vertical; min-height: 62px; max-height: 220px;
   font: inherit; font-size: 14px; line-height: 1.5; color: var(--text);
   background: transparent; border: 0; outline: none;
-  padding: 13px 108px 13px 15px;
+  padding: 14px 108px 14px 16px;
 }
-[dir="rtl"] .community-composer textarea { padding: 13px 15px 13px 108px; }
+[dir="rtl"] .community-composer textarea { padding: 14px 16px 14px 108px; }
 .community-composer button {
   position: absolute; inset-inline-end: 9px; bottom: 9px;
   display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
