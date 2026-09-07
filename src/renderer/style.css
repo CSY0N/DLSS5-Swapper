@@ -1791,6 +1791,9 @@ body { cursor: default; }
 .sheet-notes-chevron { width: 16px; height: 16px; transition: transform .2s cubic-bezier(.3,1.1,.4,1); }
 .sheet-notes-head[aria-expanded="true"] .sheet-notes-chevron { transform: rotate(180deg); }
 .sheet-notes-body { display: grid; gap: 10px; padding: 2px 12px 12px; animation: community-rise .22s cubic-bezier(.22,.9,.3,1) both; }
+/* An explicit display outranks the hidden attribute, so setting hidden did
+   nothing at all and the box would not close. */
+.sheet-notes-body[hidden] { display: none; }
 /* Inside the box the notes are plain: the box carries the edge now. */
 .sheet-notes-body .emu-note { border-radius: 11px; }
 @media (prefers-reduced-motion: reduce) { .sheet-notes-body, .sheet-notes-chevron { animation: none; transition: none } }
