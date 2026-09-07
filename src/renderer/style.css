@@ -1771,7 +1771,9 @@ body { cursor: default; }
 /* ---------------- notes about a game ---------------- */
 /* Five stacked boxes became one that can be put away. A warning still says so
    on the outside: what can cost an account is not hidden behind a closed lid. */
-.sheet-notes { border: 1px solid var(--line); border-radius: 14px; background: var(--glass); overflow: hidden; }
+/* The row of selects above sets its own top margin and nothing sets a bottom
+   one, so without this the box sits flush against them. */
+.sheet-notes { margin-top: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--glass); overflow: hidden; }
 .sheet-notes.has-warning { border-color: rgba(226,90,90,.42); background: rgba(226,90,90,.06); }
 .sheet-notes-head {
   display: flex; align-items: center; gap: 11px; width: 100%; cursor: pointer;
