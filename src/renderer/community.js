@@ -283,11 +283,11 @@
     return `<div class="community-thread-root">
       <span class="community-thread-label">${esc(text().replyingTo)}</span>
       <div class="community-quote">
-        <i class="community-dot ${esc(comment.verdict || '')}"></i>
         <span class="community-avatar-tile small">${avatar(by.icon)}</span>
         <div>
           <header><b>${esc(by.name || text().unnamed)}</b><small>#${esc(by.tag || '----')}</small>
-            <span class="community-when">${esc(ago(comment.at))}</span></header>
+            <span class="community-when">${esc(ago(comment.at))}</span>
+            <i class="community-dot ${esc(comment.verdict || '')}"></i></header>
           ${comment.comment ? `<p>${esc(comment.comment)}</p>` : ''}
           ${about ? `<span class="community-about">${esc(about)}</span>` : ''}
         </div>

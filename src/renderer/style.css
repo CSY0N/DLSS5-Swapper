@@ -1407,7 +1407,7 @@ body { cursor: default; }
   border-radius: 0 3px 3px 0; background: var(--accent); opacity: .85;
 }
 [dir="rtl"] .community-quote::before { border-radius: 3px 0 0 3px; }
-.community-quote > .community-dot { position: absolute; top: 14px; inset-inline-end: 14px; }
+.community-quote header .community-dot { flex: none; }
 .community-quote header { display: flex; align-items: center; gap: 8px; }
 .community-quote header b { font-size: 14px; }
 .community-quote header small { color: var(--muted); font-size: 12px; font-weight: 500; }
@@ -1420,7 +1420,7 @@ body { cursor: default; }
   border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; background: var(--glass);
   animation: community-rise .3s cubic-bezier(.22,.9,.3,1) both;
 }
-.community-reply header { display: flex; align-items: center; gap: 8px; }
+.community-reply header, .community-quote header { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .community-reply header b { font-size: 14px; }
 .community-reply header small { color: var(--muted); font-size: 12px; font-weight: 500; }
 .community-reply p { margin: 6px 0 0; font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
