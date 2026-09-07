@@ -1389,8 +1389,30 @@ body { cursor: default; }
 [dir="rtl"] .community-back svg { transform: scaleX(-1); }
 [dir="rtl"] .community-back:hover { transform: translateX(2px); }
 
-/* The result being discussed stays at the top so the replies have a subject. */
-.community-thread-root .community-comment-card { border-color: rgba(255,255,255,.16); }
+/* The subject of the thread, said once and small. A full comment card here
+   buried the conversation under a repeat of what was just clicked. */
+.community-thread-root { display: grid; gap: 8px; }
+.community-thread-label {
+  font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--dim);
+}
+.community-quote {
+  position: relative; display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start;
+  padding: 13px 15px 13px 17px; border-radius: 13px;
+  background: color-mix(in srgb, var(--accent) 6%, var(--glass));
+  border: 1px solid var(--line);
+}
+/* One accent bar down the leading edge: this is the thing being answered. */
+.community-quote::before {
+  content: ''; position: absolute; inset-block: 11px; inset-inline-start: 0; width: 3px;
+  border-radius: 0 3px 3px 0; background: var(--accent); opacity: .85;
+}
+[dir="rtl"] .community-quote::before { border-radius: 3px 0 0 3px; }
+.community-quote > .community-dot { position: absolute; top: 14px; inset-inline-end: 14px; }
+.community-quote header { display: flex; align-items: center; gap: 8px; }
+.community-quote header b { font-size: 14px; }
+.community-quote header small { color: var(--muted); font-size: 12px; font-weight: 500; }
+.community-quote p { margin: 5px 0 0; font-size: 14px; line-height: 1.45; }
+.community-about { display: block; margin-top: 7px; color: var(--muted); font-size: 12px; }
 
 .community-replies { display: grid; gap: 10px; padding-inline-start: 30px; position: relative; }
 /* One line down the side, so a reply is visibly under the thing it answers. */
@@ -1409,14 +1431,31 @@ body { cursor: default; }
 .community-reply p { margin: 6px 0 0; font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .community-avatar-tile.small { width: 40px; height: 40px; border-radius: 12px; font-size: 19px; }
 
-.community-reply-form { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: stretch; margin-top: 2px; }
-.community-reply-form button { align-self: stretch; padding-inline: 20px; white-space: nowrap; }
-.community-reply-form textarea {
-  width: 100%; resize: vertical; min-height: 54px; font: inherit; font-size: 14px; line-height: 1.5;
-  border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
-  background: var(--glass); color: var(--text);
+/* One box, the same width as everything above it, with the button inside it
+   rather than hanging off the corner. */
+.community-composer {
+  position: relative; border: 1px solid var(--line); border-radius: 14px;
+  background: var(--glass); transition: border-color .16s ease, box-shadow .16s ease;
 }
-.community-reply-form textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+.community-composer:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 13%, transparent); }
+.community-composer textarea {
+  display: block; width: 100%; resize: vertical; min-height: 62px; max-height: 220px;
+  font: inherit; font-size: 14px; line-height: 1.5; color: var(--text);
+  background: transparent; border: 0; outline: none;
+  padding: 13px 108px 13px 15px;
+}
+[dir="rtl"] .community-composer textarea { padding: 13px 15px 13px 108px; }
+.community-composer button {
+  position: absolute; inset-inline-end: 9px; bottom: 9px;
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+  border: 0; border-radius: 10px; padding: 9px 14px; font-size: 13px; font-weight: 650;
+  background: var(--accent); color: #08120a;
+  transition: transform .16s cubic-bezier(.3,1.2,.4,1), filter .16s ease;
+}
+.community-composer button:hover { transform: translateY(-1px); filter: brightness(1.06); }
+.community-composer button:disabled { opacity: .55; cursor: default; transform: none; }
+.community-composer button svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+[dir="rtl"] .community-composer button svg { transform: scaleX(-1); }
 
 /* The way in, on every result. */
 .community-open-thread {

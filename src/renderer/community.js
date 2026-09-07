@@ -10,6 +10,7 @@
       share: 'Share your result', routeUsed: 'Route used', choose: 'Choose…', unknown: 'Unknown', yourResult: 'Your result', optionalComment: 'Optional comment', sent: 'Data that will be sent', privacy: 'No folder path is sent. The server stores only a hash of a random app identifier.', cancel: 'Cancel', submit: 'Submit report', submitting: 'Submitting…', chooseRoute: 'Choose the route you actually used.', chooseVerdict: 'Choose your result.', sentOk: 'Your report was added to the community.',
       profile: 'Community profile', profileHint: 'Your fixed avatar and display name appear beside your comments. A name can change once a week.', displayName: 'Display name', chooseIcon: 'Choose an avatar', save: 'Save profile', saved: 'Profile saved.', unnamed: 'Anonymous', addGame: 'Add to community-tested games', reactionFailed: 'Could not save that reaction.',
       reply: 'Reply', back: 'Back to all results', noReplies: 'No replies yet. Be the first.',
+      replyingTo: 'Replying to',
       replyPlaceholder: 'Reply to this result…', send: 'Send',
       facts: { title: 'Game', route: 'Route', api: 'API', gpu: 'GPU', driver: 'Driver', cpu: 'CPU', os: 'OS', app: 'App version' }
     },
@@ -20,6 +21,7 @@
       share: 'شارك نتيجتك', routeUsed: 'طريقة التثبيت المستخدمة', choose: 'اختر…', unknown: 'غير معروف', yourResult: 'نتيجتك', optionalComment: 'تعليق اختياري', sent: 'البيانات التي سيتم إرسالها', privacy: 'لن يُرسل مسار مجلد اللعبة. الخادم يحفظ فقط بصمة لمعرّف عشوائي خاص بالتطبيق.', cancel: 'إلغاء', submit: 'إرسال التقرير', submitting: 'جاري الإرسال…', chooseRoute: 'اختر طريقة التثبيت التي استخدمتها فعليًا.', chooseVerdict: 'اختر نتيجتك.', sentOk: 'تمت إضافة تقريرك إلى المجتمع.',
       profile: 'ملف المجتمع', profileHint: 'تظهر صورتك الثابتة واسمك بجانب تعليقاتك. يمكن تغيير الاسم مرة كل أسبوع.', displayName: 'اسم العرض', chooseIcon: 'اختر صورة', save: 'حفظ الملف', saved: 'تم حفظ الملف.', unnamed: 'مجهول', addGame: 'إضافة إلى الألعاب المختبرة من المجتمع', reactionFailed: 'تعذر حفظ التفاعل.',
       reply: 'رد', back: 'الرجوع إلى كل النتائج', noReplies: 'لا ردود بعد. كن أول من يرد.',
+      replyingTo: 'ردًّا على',
       replyPlaceholder: 'ردّ على هذه النتيجة…', send: 'إرسال',
       facts: { title: 'اللعبة', route: 'الطريقة', api: 'الواجهة', gpu: 'كرت الشاشة', driver: 'التعريف', cpu: 'المعالج', os: 'النظام', app: 'إصدار البرنامج' }
     }
@@ -244,13 +246,16 @@
         <button type="button" class="community-back" id="communityThreadBack">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>${esc(text().back)}
         </button>
-        <div class="community-thread-root">${commentMarkup(comment)}</div>
+        ${threadRoot(comment)}
         <div class="community-replies">${replies.length
           ? replies.map(replyMarkup).join('')
           : `<p class="community-empty">${esc(text().noReplies)}</p>`}</div>
-        <form class="community-reply-form" id="communityReplyForm">
+        <form class="community-composer" id="communityReplyForm">
           <textarea id="communityReplyBody" rows="2" maxlength="1200" placeholder="${esc(text().replyPlaceholder)}"></textarea>
-          <button class="glass-btn sm" type="submit">${esc(text().send)}</button>
+          <button type="submit" aria-label="${esc(text().send)}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 12 16-8-6 8 6 8z"/><path d="M4 12h10"/></svg>
+            <span>${esc(text().send)}</span>
+          </button>
         </form>
       </div>`;
     $('communityThreadBack').onclick = () => { state.thread = null; paintCard(state.active); };
@@ -266,6 +271,28 @@
       box.value = '';
       await paintThread();
     };
+  }
+
+  // What the thread is about, said once and small: who, what they found, and on
+  // what. Everything else - the tags in full, the reactions, the way in - lives
+  // on the list, and repeating it here buried the conversation under it.
+  function threadRoot(comment) {
+    const by = comment.by || {};
+    const about = [comment.route, (comment.api || '').toUpperCase(), ...(comment.tags || []).slice(0, 2)]
+      .filter(Boolean).join(' · ');
+    return `<div class="community-thread-root">
+      <span class="community-thread-label">${esc(text().replyingTo)}</span>
+      <div class="community-quote">
+        <i class="community-dot ${esc(comment.verdict || '')}"></i>
+        <span class="community-avatar-tile small">${avatar(by.icon)}</span>
+        <div>
+          <header><b>${esc(by.name || text().unnamed)}</b><small>#${esc(by.tag || '----')}</small>
+            <span class="community-when">${esc(ago(comment.at))}</span></header>
+          ${comment.comment ? `<p>${esc(comment.comment)}</p>` : ''}
+          ${about ? `<span class="community-about">${esc(about)}</span>` : ''}
+        </div>
+      </div>
+    </div>`;
   }
 
   function replyMarkup(item) {
