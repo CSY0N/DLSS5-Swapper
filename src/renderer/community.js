@@ -393,10 +393,10 @@
           <p>${esc(text().share)}</p>
         </span>`;
     };
-    paint(key && state.art[key]?.cover);
+    paint(report.hero || (key && state.art[key]?.cover) || null);
     // The wide art may not be here yet; the header is drawn either way and
     // fills in behind, rather than holding the dialog closed while it loads.
-    if (key && state.art[key] === undefined) {
+    if (!report.hero && key && state.art[key] === undefined) {
       state.art[key] = null;
       try {
         const answer = await window.lab.communityArt(key, report.title);

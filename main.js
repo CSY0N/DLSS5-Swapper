@@ -541,6 +541,13 @@ ipcMain.handle('community-withdraw', (_event, id) => communityAnswer(async () =>
 ipcMain.handle('community-reaction', (_event, id, emoji, on) => communityAnswer(async () => ({
   result: await community().react(id, emoji, on)
 })));
+// The banner the library already downloaded for this folder, if there is one.
+function heroFor(dir) {
+  try {
+    const record = (loadState().art || {})[keyFor(dir)];
+    return record && record.hero && onDisk(record.hero) ? record.hero : null;
+  } catch { return null; }
+}
 ipcMain.handle('community-prefill', async (_event, dir) => {
   if (typeof dir !== 'string' || !path.isAbsolute(dir)) return { ok: false, error: 'bad_game' };
   const game = lastGames.find(row => keyFor(row.dir) === keyFor(dir));
@@ -553,6 +560,10 @@ ipcMain.handle('community-prefill', async (_event, dir) => {
     const store = ({ Steam: 'steam', 'Epic Games': 'epic', GOG: 'gog', Xbox: 'xbox', Ubisoft: 'ubisoft' })[game.launcher] || null;
     return { prefill: {
       title: game.name, poster: game.poster?.url || game.poster || null,
+      // The wide banner was fetched with the poster when the library filled in,
+      // so the report header can have it without asking the network again - and
+      // a game found in a folder has no store id to look one up with anyway.
+      hero: heroFor(dir),
       game: { store, storeId: store && game.id ? String(game.id) : null, title: game.name,
         exe: scan.chosen?.rel ? path.basename(scan.chosen.rel) : null },
       route: ['feeder', 'renodx', 'optiscaler'].includes(route) ? route : null,
