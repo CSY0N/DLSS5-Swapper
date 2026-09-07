@@ -1372,3 +1372,62 @@ body { cursor: default; }
   70%  { opacity: 1 }
   100% { transform: translate3d(var(--dx), var(--dy), 0) scale(var(--scale)) rotate(var(--spin)); opacity: 0 }
 }
+
+/* ---------------- a thread under one result ---------------- */
+/* It replaces the list rather than opening a second window: one thing on
+   screen, one way back. */
+.community-thread { display: grid; gap: 14px; animation: community-rise .26s cubic-bezier(.22,.9,.3,1) both; }
+.community-back {
+  justify-self: start; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 8px 14px 8px 10px; border-radius: 999px; font-size: 13px;
+  border: 1px solid var(--line); background: var(--glass); color: var(--text);
+  transition: transform .16s cubic-bezier(.3,1.2,.4,1), border-color .16s ease;
+}
+.community-back:hover { transform: translateX(-2px); border-color: var(--accent); }
+.community-back svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+[dir="rtl"] .community-back svg { transform: scaleX(-1); }
+[dir="rtl"] .community-back:hover { transform: translateX(2px); }
+
+/* The result being discussed stays at the top so the replies have a subject. */
+.community-thread-root .community-comment-card { border-color: rgba(255,255,255,.16); }
+
+.community-replies { display: grid; gap: 10px; padding-inline-start: 26px; position: relative; }
+/* One line down the side, so a reply is visibly under the thing it answers. */
+.community-replies::before {
+  content: ''; position: absolute; inset-block: 4px; inset-inline-start: 9px; width: 2px;
+  border-radius: 2px; background: linear-gradient(to bottom, var(--line), transparent);
+}
+.community-reply {
+  display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start;
+  border: 1px solid var(--line); border-radius: 13px; padding: 12px 14px; background: var(--glass);
+  animation: community-rise .3s cubic-bezier(.22,.9,.3,1) both;
+}
+.community-reply header { display: flex; align-items: center; gap: 8px; }
+.community-reply header b { font-size: 14px; }
+.community-reply header small { color: var(--muted); font-size: 12px; font-weight: 500; }
+.community-reply p { margin: 6px 0 0; font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.community-avatar-tile.small { width: 40px; height: 40px; border-radius: 12px; font-size: 19px; }
+
+.community-reply-form { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
+.community-reply-form textarea {
+  width: 100%; resize: vertical; min-height: 46px; font: inherit; font-size: 14px;
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+  background: var(--glass); color: var(--text);
+}
+.community-reply-form textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+
+/* The way in, on every result. */
+.community-open-thread {
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer; margin-inline-start: auto;
+  border: 1px solid var(--line); border-radius: 999px; padding: 7px 13px;
+  background: transparent; color: var(--muted); font-size: 13px;
+  transition: color .16s ease, border-color .16s ease, background .16s ease;
+}
+.community-open-thread:hover { color: var(--text); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.community-open-thread svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.community-open-thread span { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  .community-thread, .community-reply { animation: none }
+  .community-back { transition: none }
+}

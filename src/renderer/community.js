@@ -9,6 +9,8 @@
       reports: n => `${n} report${n === 1 ? '' : 's'}`, comments: n => `${n} comment${n === 1 ? '' : 's'}`, noComments: 'No comments yet.', updated: 'Live updates are on while this card is open.',
       share: 'Share your result', routeUsed: 'Route used', choose: 'Choose…', unknown: 'Unknown', yourResult: 'Your result', optionalComment: 'Optional comment', sent: 'Data that will be sent', privacy: 'No folder path is sent. The server stores only a hash of a random app identifier.', cancel: 'Cancel', submit: 'Submit report', submitting: 'Submitting…', chooseRoute: 'Choose the route you actually used.', chooseVerdict: 'Choose your result.', sentOk: 'Your report was added to the community.',
       profile: 'Community profile', profileHint: 'Your fixed avatar and display name appear beside your comments. A name can change once a week.', displayName: 'Display name', chooseIcon: 'Choose an avatar', save: 'Save profile', saved: 'Profile saved.', unnamed: 'Anonymous', addGame: 'Add to community-tested games', reactionFailed: 'Could not save that reaction.',
+      reply: 'Reply', back: 'Back to all results', noReplies: 'No replies yet. Be the first.',
+      replyPlaceholder: 'Reply to this result…', send: 'Send',
       facts: { title: 'Game', route: 'Route', api: 'API', gpu: 'GPU', driver: 'Driver', cpu: 'CPU', os: 'OS', app: 'App version' }
     },
     ar: {
@@ -17,6 +19,8 @@
       reports: n => `${n} تقرير`, comments: n => `${n} تعليق`, noComments: 'لا توجد تعليقات بعد.', updated: 'التحديث المباشر يعمل أثناء فتح هذه البطاقة.',
       share: 'شارك نتيجتك', routeUsed: 'طريقة التثبيت المستخدمة', choose: 'اختر…', unknown: 'غير معروف', yourResult: 'نتيجتك', optionalComment: 'تعليق اختياري', sent: 'البيانات التي سيتم إرسالها', privacy: 'لن يُرسل مسار مجلد اللعبة. الخادم يحفظ فقط بصمة لمعرّف عشوائي خاص بالتطبيق.', cancel: 'إلغاء', submit: 'إرسال التقرير', submitting: 'جاري الإرسال…', chooseRoute: 'اختر طريقة التثبيت التي استخدمتها فعليًا.', chooseVerdict: 'اختر نتيجتك.', sentOk: 'تمت إضافة تقريرك إلى المجتمع.',
       profile: 'ملف المجتمع', profileHint: 'تظهر صورتك الثابتة واسمك بجانب تعليقاتك. يمكن تغيير الاسم مرة كل أسبوع.', displayName: 'اسم العرض', chooseIcon: 'اختر صورة', save: 'حفظ الملف', saved: 'تم حفظ الملف.', unnamed: 'مجهول', addGame: 'إضافة إلى الألعاب المختبرة من المجتمع', reactionFailed: 'تعذر حفظ التفاعل.',
+      reply: 'رد', back: 'الرجوع إلى كل النتائج', noReplies: 'لا ردود بعد. كن أول من يرد.',
+      replyPlaceholder: 'ردّ على هذه النتيجة…', send: 'إرسال',
       facts: { title: 'اللعبة', route: 'الطريقة', api: 'الواجهة', gpu: 'كرت الشاشة', driver: 'التعريف', cpu: 'المعالج', os: 'النظام', app: 'إصدار البرنامج' }
     }
   };
@@ -29,7 +33,7 @@
   // cached and shared; the server stays the authority on the counts, and a
   // stale entry here only costs one request it ignores.
   const readMine = () => { try { return JSON.parse(localStorage.getItem(MINE_KEY)) || {}; } catch { return {}; } };
-  const state = { art: {}, cards: [], filters: { q: '', route: 'all', api: 'all', status: 'all' }, active: null, etag: null, timer: null, report: null, verdict: null, mine: readMine() };
+  const state = { art: {}, thread: null, cards: [], filters: { q: '', route: 'all', api: 'all', status: 'all' }, active: null, etag: null, timer: null, report: null, verdict: null, mine: readMine() };
   const saveMine = () => { try { localStorage.setItem(MINE_KEY, JSON.stringify(state.mine)); } catch { /* private window, or storage off */ } };
   const text = () => L[(window.i18n?.getLang?.() || 'en').startsWith('ar') ? 'ar' : 'en'];
   const totals = verdicts => Object.values(verdicts || {}).reduce((sum, row) => ({ green: sum.green + (row.green || 0), yellow: sum.yellow + (row.yellow || 0), red: sum.red + (row.red || 0) }), { green: 0, yellow: 0, red: 0 });
@@ -209,13 +213,78 @@
         </header>
         ${comment.comment ? `<p>${esc(comment.comment)}</p>` : ''}
         <div class="community-tags">${(comment.tags || []).map(tag => `<span>${esc(tag)}</span>`).join('')}</div>
-        <div class="community-reactions">${reactions}</div>
+        <div class="community-reactions">${reactions}
+          <button type="button" class="community-open-thread" data-thread="${comment.id}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3v-6.5A8 8 0 0 1 11 4h2a8 8 0 0 1 8 8z"/></svg>
+            ${comment.replies ? `<span>${comment.replies}</span>` : ''}${esc(text().reply)}
+          </button>
+        </div>
+      </div>
+    </article>`;
+  }
+
+  // One comment and everything said under it. It replaces the list rather than
+  // opening a second window, so there is one thing on screen at a time and one
+  // way back.
+  async function openThread(reportId) {
+    const comment = (state.active?.comments || []).find(item => String(item.id) === String(reportId));
+    if (!comment) return;
+    state.thread = { id: reportId, comment };
+    $('communityCardBody').innerHTML = `<p class="community-empty">${esc(text().loading)}</p>`;
+    await paintThread();
+  }
+
+  async function paintThread() {
+    if (!state.thread) return;
+    const { id, comment } = state.thread;
+    const answer = await window.lab.communityReplies(id);
+    const replies = answer?.ok ? answer.thread.replies : [];
+    $('communityCardBody').innerHTML = `
+      <div class="community-thread">
+        <button type="button" class="community-back" id="communityThreadBack">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>${esc(text().back)}
+        </button>
+        <div class="community-thread-root">${commentMarkup(comment)}</div>
+        <div class="community-replies">${replies.length
+          ? replies.map(replyMarkup).join('')
+          : `<p class="community-empty">${esc(text().noReplies)}</p>`}</div>
+        <form class="community-reply-form" id="communityReplyForm">
+          <textarea id="communityReplyBody" rows="2" maxlength="1200" placeholder="${esc(text().replyPlaceholder)}"></textarea>
+          <button class="glass-btn sm" type="submit">${esc(text().send)}</button>
+        </form>
+      </div>`;
+    $('communityThreadBack').onclick = () => { state.thread = null; paintCard(state.active); };
+    $('communityReplyForm').onsubmit = async event => {
+      event.preventDefault();
+      const box = $('communityReplyBody'), said = box.value.trim();
+      if (!said) return;
+      const button = event.target.querySelector('button');
+      button.disabled = true;
+      const answer = await window.lab.communityReply(id, said);
+      button.disabled = false;
+      if (!answer?.ok) { $('communityNotice').textContent = answer?.message || text().reactionFailed; return; }
+      box.value = '';
+      await paintThread();
+    };
+  }
+
+  function replyMarkup(item) {
+    const by = item.by || {};
+    return `<article class="community-reply">
+      <span class="community-avatar-tile small">${avatar(by.icon)}</span>
+      <div>
+        <header><b>${esc(by.name || text().unnamed)}</b><small>#${esc(by.tag || '----')}</small>
+          <span class="community-when">${esc(ago(item.at))}</span></header>
+        <p>${esc(item.body)}</p>
       </div>
     </article>`;
   }
 
   function paintCard(card) {
     state.active = card;
+    // A live update arriving while a thread is open must not throw the reader
+    // back to the list; the thread refreshes itself instead.
+    if (state.thread) { paintThread(); return; }
     const art = state.art[card.key] || {};
     const head = $('communityCardHead');
     head.style.setProperty('--card-hue', `${hueOf(card.title)}deg`);
@@ -253,7 +322,7 @@
     if (latest?.ok && latest.card) { state.etag = latest.etag; paintCard(latest.card); render(); }
   }
   function stopPolling() { if (state.timer) clearInterval(state.timer); state.timer = null; }
-  function closeCard() { stopPolling(); state.active = null; $('communityCardDialog').close(); }
+  function closeCard() { stopPolling(); state.active = null; state.thread = null; $('communityCardDialog').close(); }
 
   function privacyRows(prefill) {
     const facts = { title: prefill.title, route: $('communityReportRoute').value || '—', api: $('communityReportApi').value || '—', gpu: prefill.gpu, driver: prefill.driver, cpu: prefill.cpu, os: prefill.os, app: prefill.app };
@@ -344,6 +413,8 @@
 
     $('communityCardClose').onclick = closeCard; $('communityCardDialog').addEventListener('cancel', event => { event.preventDefault(); closeCard(); });
     $('communityCardBody').onclick = async event => {
+      const thread = event.target.closest('[data-thread]');
+      if (thread) return void openThread(thread.dataset.thread);
       const button = event.target.closest('[data-reaction]');
       if (!button) return;
       const report = button.dataset.report, emoji = button.dataset.reaction;

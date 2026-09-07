@@ -50,6 +50,8 @@ contextBridge.exposeInMainWorld('lab', {
   artStatus: () => ipcRenderer.invoke('art-status'),
   artFetch: (dir, name, appid) => ipcRenderer.invoke('art-fetch', dir, name, appid),
   communityArt: (key, title) => ipcRenderer.invoke('community-art', key, title),
+  communityReplies: (id) => ipcRenderer.invoke('community-replies', id),
+  communityReply: (id, body) => ipcRenderer.invoke('community-reply', id, body),
   touch: (dir) => ipcRenderer.invoke('touch', dir),
   recents: () => ipcRenderer.invoke('recents'),
   details: (dir) => ipcRenderer.invoke('details', dir),

@@ -516,6 +516,12 @@ ipcMain.handle('community-profile-save', (_event, profile) => communityAnswer(as
 ipcMain.handle('community-cards', (_event, filters) => communityAnswer(async () => ({
   cards: await community().cards(filters && typeof filters === 'object' ? filters : {})
 })));
+ipcMain.handle('community-replies', (_event, id) => communityAnswer(async () => ({
+  thread: await community().replies(id)
+})));
+ipcMain.handle('community-reply', (_event, id, body) => communityAnswer(async () => ({
+  reply: await community().reply(id, typeof body === 'string' ? body : '')
+})));
 ipcMain.handle('community-card', (_event, key, etag) => communityAnswer(async () => {
   if (typeof key !== 'string' || key.length > 300) throw Object.assign(new Error('Invalid game card.'), { code: 'bad_card' });
   const result = await community().card(key, typeof etag === 'string' ? etag : null);

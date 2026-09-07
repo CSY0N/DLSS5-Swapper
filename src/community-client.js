@@ -92,6 +92,20 @@ class CommunityClient {
     return this.request('GET', `/v1/cards/${encodeURIComponent(key)}/updates?since=${Number(since) || 0}`, { etag });
   }
 
+  async replies(reportId) {
+    return (await this.request('GET', `/v1/reports/${encodeURIComponent(reportId)}/replies`)).data;
+  }
+
+  async reply(reportId, body) {
+    return (await this.request('POST', `/v1/reports/${encodeURIComponent(reportId)}/replies`, {
+      body: { body }, write: true
+    })).data;
+  }
+
+  async withdrawReply(id) {
+    return (await this.request('DELETE', `/v1/replies/${encodeURIComponent(id)}`, { write: true })).data;
+  }
+
   async report(payload) {
     return (await this.request('POST', '/v1/reports', { body: payload, write: true })).data;
   }
