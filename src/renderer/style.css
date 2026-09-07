@@ -1501,3 +1501,51 @@ body { cursor: default; }
   margin-inline-end: auto;
 }
 .job-toolbar .ghost.accent:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); border-color: var(--accent); }
+
+/* ---------------- the report dialog ---------------- */
+/* Same header as the opened card, then a form with room to breathe. */
+.community-report-body { display: grid; gap: 18px; padding: 20px 22px 22px; }
+.community-report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.community-report-body label > span, .community-verdicts legend {
+  display: block; margin-bottom: 7px; color: var(--muted); font-size: 12.5px;
+}
+.community-report-body select, .community-report-body textarea {
+  width: 100%; font: inherit; font-size: 14px; color: var(--text);
+  background: var(--glass); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+}
+.community-report-body textarea { min-height: 92px; resize: vertical; line-height: 1.5; }
+.community-report-body select:focus, .community-report-body textarea:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 13%, transparent);
+}
+
+/* Three answers, equal weight, each carrying its own colour. */
+.community-verdicts { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+.community-verdicts legend { grid-column: 1/-1; margin: 0 0 7px; padding: 0; }
+.community-verdicts button {
+  display: flex; align-items: center; justify-content: center; gap: 9px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 13px; padding: 14px 10px;
+  background: var(--glass); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600;
+  transition: transform .16s cubic-bezier(.3,1.2,.4,1), border-color .16s ease, background .16s ease;
+}
+.community-verdicts button:hover { transform: translateY(-2px); }
+.community-verdicts button::before { content: ''; width: 11px; height: 11px; border-radius: 50%; background: currentColor; flex: none; }
+.community-verdicts button[data-verdict="green"] { color: #69bd0c }
+.community-verdicts button[data-verdict="yellow"] { color: #d99e00 }
+.community-verdicts button[data-verdict="red"] { color: #e54d58 }
+.community-verdicts button.selected {
+  border-color: currentColor; background: color-mix(in srgb, currentColor 12%, transparent);
+  box-shadow: 0 0 0 1px currentColor;
+}
+
+/* Exactly what leaves the machine, shown before it does. */
+.community-privacy { border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 14px; padding: 16px 18px; background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.community-privacy > b { display: block; margin-bottom: 12px; font-size: 14px; }
+#communityPrivacyData { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 26px; }
+#communityPrivacyData > div { display: flex; align-items: baseline; gap: 10px; font-size: 12.5px; padding-bottom: 7px; border-bottom: 1px solid var(--line); }
+#communityPrivacyData > div > span { color: var(--muted); }
+#communityPrivacyData > div > b { margin-inline-start: auto; font-weight: 650; text-align: end; overflow-wrap: anywhere; }
+.community-privacy p { margin: 13px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+.community-submit-row { display: flex; justify-content: flex-end; gap: 10px; }
+.community-error { margin: 0; color: #e05a5a; font-size: 13px; min-height: 18px; }
+@media (max-width: 680px) { .community-report-grid, #communityPrivacyData, .community-verdicts { grid-template-columns: 1fr; } }

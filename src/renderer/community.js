@@ -88,7 +88,7 @@
 
   function applyLanguage() {
     const s = text();
-    const values = { communityTitle: s.title, communitySubtitle: s.subtitle, communityRefresh: s.refresh, communitySearchLabel: s.search, communityRouteLabel: s.route, communityApiLabel: s.api, communityStatusLabel: s.result, communityClear: s.clear, communityReportTitle: s.share, communityReportRouteLabel: s.routeUsed, communityReportApiLabel: s.api, communityVerdictLabel: s.yourResult, communityCommentLabel: s.optionalComment, communityPrivacyTitle: s.sent, communityPrivacyNote: s.privacy, communityReportCancel: s.cancel, communityReportSubmit: s.submit };
+    const values = { communityTitle: s.title, communitySubtitle: s.subtitle, communityRefresh: s.refresh, communitySearchLabel: s.search, communityRouteLabel: s.route, communityApiLabel: s.api, communityStatusLabel: s.result, communityClear: s.clear, communityReportRouteLabel: s.routeUsed, communityReportApiLabel: s.api, communityVerdictLabel: s.yourResult, communityCommentLabel: s.optionalComment, communityPrivacyTitle: s.sent, communityPrivacyNote: s.privacy, communityReportCancel: s.cancel, communityReportSubmit: s.submit };
     for (const [id, value] of Object.entries(values)) if ($(id)) $(id).textContent = value;
     const setOption = (id, value, label) => { const option = $(id)?.querySelector(`option[value="${value}"]`); if (option) option.textContent = label; };
     setOption('communityRoute', 'all', s.allRoutes); setOption('communityApi', 'all', s.allApis); setOption('communityStatus', 'all', s.allResults);
@@ -373,11 +373,43 @@
   }
   function updatePrivacy() { if (state.report) $('communityPrivacyData').innerHTML = privacyRows(state.report); }
 
+  // The same header the opened card has: the game's own art behind it and its
+  // poster beside the title, so it is obvious which game is being reported on.
+  async function paintReportHead() {
+    const report = state.report;
+    if (!report) return;
+    const head = $('communityReportHead');
+    const key = report.game?.store && report.game?.storeId ? `${report.game.store}:${report.game.storeId}` : null;
+    head.style.setProperty('--card-hue', `${hueOf(report.title)}deg`);
+    const paint = wide => {
+      head.innerHTML = `
+        ${wide ? `<img class="community-head-art" src="${esc(wide)}" alt="">` : ''}
+        <span class="community-head-veil"></span>
+        <span class="community-poster">${report.poster
+          ? `<img src="${esc(report.poster)}" alt="">`
+          : `<span class="community-initials">${esc(initialsOf(report.title))}</span>`}</span>
+        <span class="community-head-copy">
+          <h3>${esc(report.title)}</h3>
+          <p>${esc(text().share)}</p>
+        </span>`;
+    };
+    paint(key && state.art[key]?.cover);
+    // The wide art may not be here yet; the header is drawn either way and
+    // fills in behind, rather than holding the dialog closed while it loads.
+    if (key && state.art[key] === undefined) {
+      state.art[key] = null;
+      try {
+        const answer = await window.lab.communityArt(key, report.title);
+        if (answer?.cover) { state.art[key] = answer; if (state.report === report) paint(answer.cover); }
+      } catch { /* offline: the gradient stands in */ }
+    }
+  }
+
   async function openReport(dir) {
     const response = await window.lab.communityPrefill(dir);
     if (!response?.ok) { $('communityNotice').textContent = response?.message || text().offline; return; }
     state.report = response.prefill; state.verdict = null; applyLanguage();
-    $('communityReportGame').textContent = state.report.title;
+    paintReportHead();
     $('communityReportRoute').value = state.report.route || '';
     $('communityReportApi').value = state.report.api || '';
     $('communityReportComment').value = '';

@@ -250,8 +250,9 @@
     <div id="communityCardBody"></div>
   </dialog>
   <dialog id="communityReportDialog" class="community-dialog community-report-dialog">
-    <div class="community-dialog-head"><div><h3 id="communityReportTitle">Share your result</h3><p id="communityReportGame"></p></div><button class="ghost sm" id="communityReportClose" aria-label="Close">✕</button></div>
-    <form id="communityReportForm">
+    <div class="community-card-head" id="communityReportHead"></div>
+    <button class="community-close" id="communityReportClose" aria-label="Close">✕</button>
+    <form id="communityReportForm" class="community-report-body">
       <div class="community-report-grid">
         <label><span id="communityReportRouteLabel">Route used</span><select id="communityReportRoute" required><option value="">Choose…</option><option value="feeder">Feeder</option><option value="renodx">RenoDX</option><option value="optiscaler">OptiScaler</option></select></label>
         <label><span id="communityReportApiLabel">Rendering API</span><select id="communityReportApi"><option value="">Unknown</option><option value="dx12">DX12</option><option value="dx11">DX11</option><option value="dx9">DX9</option><option value="dx8">DX8</option><option value="vulkan">Vulkan</option><option value="opengl">OpenGL</option></select></label>
