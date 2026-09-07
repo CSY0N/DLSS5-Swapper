@@ -1467,3 +1467,29 @@ body { cursor: default; }
   .community-thread, .community-reply { animation: none }
   .community-back { transition: none }
 }
+
+/* A route chip is a filter now, so it has to look pressable and look pressed. */
+.community-route-count { cursor: pointer; font: inherit; text-align: start; }
+.community-route-count.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, rgba(12,18,26,.55));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.community-route-count.on .community-route-go { stroke: var(--accent); transform: rotate(90deg); }
+[dir="rtl"] .community-route-count.on .community-route-go { transform: rotate(90deg) scaleX(-1); }
+.community-route-go { transition: transform .18s cubic-bezier(.3,1.2,.4,1), stroke .18s ease; }
+
+/* What is being shown, and the way back to everything. */
+.community-route-filter {
+  display: flex; align-items: center; gap: 12px; margin: 0 22px; padding: 11px 15px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--glass);
+  color: var(--muted); font-size: 13px;
+}
+.community-route-filter span { font-weight: 650; color: var(--text); }
+.community-route-filter button {
+  margin-inline-start: auto; cursor: pointer; font: inherit; font-size: 12.5px;
+  border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px;
+  background: transparent; color: var(--muted);
+  transition: color .16s ease, border-color .16s ease;
+}
+.community-route-filter button:hover { color: var(--text); border-color: var(--accent); }

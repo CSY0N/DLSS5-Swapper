@@ -11,6 +11,7 @@
       profile: 'Community profile', profileHint: 'Your fixed avatar and display name appear beside your comments. A name can change once a week.', displayName: 'Display name', chooseIcon: 'Choose an avatar', save: 'Save profile', saved: 'Profile saved.', unnamed: 'Anonymous', addGame: 'Add to community-tested games', reactionFailed: 'Could not save that reaction.',
       reply: 'Reply', back: 'Back to all results', noReplies: 'No replies yet. Be the first.',
       replyingTo: 'Replying to',
+      showing: (route, n) => `${route} · ${n} ${n === 1 ? 'result' : 'results'}`, showAll: 'Show all routes',
       replyPlaceholder: 'Reply to this result…', send: 'Send',
       facts: { title: 'Game', route: 'Route', api: 'API', gpu: 'GPU', driver: 'Driver', cpu: 'CPU', os: 'OS', app: 'App version' }
     },
@@ -22,6 +23,7 @@
       profile: 'ملف المجتمع', profileHint: 'تظهر صورتك الثابتة واسمك بجانب تعليقاتك. يمكن تغيير الاسم مرة كل أسبوع.', displayName: 'اسم العرض', chooseIcon: 'اختر صورة', save: 'حفظ الملف', saved: 'تم حفظ الملف.', unnamed: 'مجهول', addGame: 'إضافة إلى الألعاب المختبرة من المجتمع', reactionFailed: 'تعذر حفظ التفاعل.',
       reply: 'رد', back: 'الرجوع إلى كل النتائج', noReplies: 'لا ردود بعد. كن أول من يرد.',
       replyingTo: 'ردًّا على',
+      showing: (route, n) => `${route} · ${n} نتيجة`, showAll: 'عرض كل الطرق',
       replyPlaceholder: 'ردّ على هذه النتيجة…', send: 'إرسال',
       facts: { title: 'اللعبة', route: 'الطريقة', api: 'الواجهة', gpu: 'كرت الشاشة', driver: 'التعريف', cpu: 'المعالج', os: 'النظام', app: 'إصدار البرنامج' }
     }
@@ -35,7 +37,7 @@
   // cached and shared; the server stays the authority on the counts, and a
   // stale entry here only costs one request it ignores.
   const readMine = () => { try { return JSON.parse(localStorage.getItem(MINE_KEY)) || {}; } catch { return {}; } };
-  const state = { art: {}, thread: null, cards: [], filters: { q: '', route: 'all', api: 'all', status: 'all' }, active: null, etag: null, timer: null, report: null, verdict: null, mine: readMine() };
+  const state = { art: {}, thread: null, route: null, cards: [], filters: { q: '', route: 'all', api: 'all', status: 'all' }, active: null, etag: null, timer: null, report: null, verdict: null, mine: readMine() };
   const saveMine = () => { try { localStorage.setItem(MINE_KEY, JSON.stringify(state.mine)); } catch { /* private window, or storage off */ } };
   const text = () => L[(window.i18n?.getLang?.() || 'en').startsWith('ar') ? 'ar' : 'en'];
   const totals = verdicts => Object.values(verdicts || {}).reduce((sum, row) => ({ green: sum.green + (row.green || 0), yellow: sum.yellow + (row.yellow || 0), red: sum.red + (row.red || 0) }), { green: 0, yellow: 0, red: 0 });
@@ -150,7 +152,9 @@
     return ['feeder', 'renodx', 'optiscaler'].filter(route => verdicts?.[route]).map(route => {
       const row = verdicts[route];
       const name = route === 'optiscaler' ? 'OptiScaler' : route === 'renodx' ? 'RenoDX' : 'Feeder';
-      return `<span class="community-route-count ${route}">
+      const on = state.route === route;
+      return `<button type="button" class="community-route-count ${route}${on ? ' on' : ''}"
+        data-route="${route}" aria-pressed="${on}">
         <span class="community-route-tile" aria-hidden="true">${ROUTE_MARK[route]}</span>
         <span class="community-route-copy"><b>${name}</b>
           <span class="community-counts">
@@ -159,7 +163,7 @@
             <span class="red"><i class="community-dot red"></i>${row.red || 0}</span>
           </span></span>
         <svg class="community-route-go" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
-      </span>`;
+      </button>`;
     }).join('');
   }
 
@@ -276,6 +280,8 @@
   // What the thread is about, said once and small: who, what they found, and on
   // what. Everything else - the tags in full, the reactions, the way in - lives
   // on the list, and repeating it here buried the conversation under it.
+  const routeName = route => route === 'optiscaler' ? 'OptiScaler' : route === 'renodx' ? 'RenoDX' : 'Feeder';
+
   function threadRoot(comment) {
     const by = comment.by || {};
     const about = [comment.route, (comment.api || '').toUpperCase(), ...(comment.tags || []).slice(0, 2)]
@@ -327,9 +333,19 @@
         <p>${esc(text().updated)}</p>
         <span class="community-route-counts">${routeCounts(card.verdicts)}</span>
       </span>`;
-    $('communityCardBody').innerHTML = `<div class="community-comments">${card.comments?.length
-      ? card.comments.map(commentMarkup).join('')
-      : `<p class="community-empty">${esc(text().noComments)}</p>`}</div>`;
+    const shown = state.route
+      ? (card.comments || []).filter(item => item.route === state.route)
+      : (card.comments || []);
+    $('communityCardBody').innerHTML = `
+      ${state.route ? `<div class="community-route-filter">
+        <span>${esc(text().showing(routeName(state.route), shown.length))}</span>
+        <button type="button" id="communityRouteClear">${esc(text().showAll)}</button>
+      </div>` : ''}
+      <div class="community-comments">${shown.length
+        ? shown.map(commentMarkup).join('')
+        : `<p class="community-empty">${esc(text().noComments)}</p>`}</div>`;
+    const clear = $('communityRouteClear');
+    if (clear) clear.onclick = () => { state.route = null; paintCard(state.active); };
   }
 
   async function openCard(key) {
@@ -349,7 +365,7 @@
     if (latest?.ok && latest.card) { state.etag = latest.etag; paintCard(latest.card); render(); }
   }
   function stopPolling() { if (state.timer) clearInterval(state.timer); state.timer = null; }
-  function closeCard() { stopPolling(); state.active = null; state.thread = null; $('communityCardDialog').close(); }
+  function closeCard() { stopPolling(); state.active = null; state.thread = null; state.route = null; $('communityCardDialog').close(); }
 
   function privacyRows(prefill) {
     const facts = { title: prefill.title, route: $('communityReportRoute').value || '—', api: $('communityReportApi').value || '—', gpu: prefill.gpu, driver: prefill.driver, cpu: prefill.cpu, os: prefill.os, app: prefill.app };
@@ -438,6 +454,14 @@
       if (card && !card.contains(event.relatedTarget)) { card.style.removeProperty('--mx'); card.style.removeProperty('--my'); }
     });
 
+    $('communityCardHead').onclick = event => {
+      const chip = event.target.closest('[data-route]');
+      if (!chip || !state.active) return;
+      // Pressing the chip that is already on takes the filter off again.
+      state.route = state.route === chip.dataset.route ? null : chip.dataset.route;
+      state.thread = null;
+      paintCard(state.active);
+    };
     $('communityCardClose').onclick = closeCard; $('communityCardDialog').addEventListener('cancel', event => { event.preventDefault(); closeCard(); });
     $('communityCardBody').onclick = async event => {
       const thread = event.target.closest('[data-thread]');
