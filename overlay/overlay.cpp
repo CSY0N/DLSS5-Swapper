@@ -197,9 +197,24 @@ struct surface {
     ULONGLONG telemetry_at = 0;
     std::string last_status;
     ImVec2 position = ImVec2(32, 32);
+    // Draw size as a multiple of the panel's own pixels. Read from
+    // ReShade.ini on the first frame and written back when a drag ends.
+    float scale = 0.f;
+    bool sizing = false;
 };
 std::unordered_map<reshade::api::effect_runtime *, std::unique_ptr<surface>> surfaces;
 bool registered = false;
+constexpr float min_scale = 0.75f, max_scale = 2.5f;
+// Stored as a whole percentage so it survives ReShade's own int handling
+// and stays readable to anyone who opens ReShade.ini.
+float load_scale(reshade::api::effect_runtime *runtime) {
+    int percent = 0;
+    if (!reshade::get_config_value(runtime, "DLSS5Swapper", "PanelScale", percent) || percent <= 0) return 1.f;
+    return std::clamp(percent / 100.f, min_scale, max_scale);
+}
+void save_scale(reshade::api::effect_runtime *runtime, float scale) {
+    reshade::set_config_value(runtime, "DLSS5Swapper", "PanelScale", int(scale * 100.f + 0.5f));
+}
 ImVec2 vector_call(ImVec2 (*fn)()) { ImVec2 result; lab_imgui_vec2(reinterpret_cast<void *>(fn), &result.x, &result.y); return result; }
 void release_texture(reshade::api::effect_runtime *runtime, surface &s) {
     if (!s.texture.handle) return;
@@ -262,12 +277,48 @@ void draw(reshade::api::effect_runtime *runtime) {
         s.uploaded = bridge.sequence;
     }
     const auto origin = vector_call(imgui_function_table_instance()->GetCursorScreenPos);
-    // Fixed 1:1 pixels: fonts/sliders never inherit ReShade's font or scaling.
-    ImGui::InvisibleButton("##lab-shared-panel", ImVec2(panel_width, bridge.height));
-    ImGui::GetWindowDrawList()->AddImage(ImTextureRef(static_cast<ImTextureID>(s.view.handle)), origin, ImVec2(origin.x + panel_width, origin.y + bridge.height));
+    if (s.scale <= 0.f) s.scale = load_scale(runtime);
+    const float width = panel_width * s.scale, drawn = bridge.height * s.scale;
+    // The panel's own pixels are still 1:1 with what the app drew; only the
+    // rectangle they are stretched into changes, so fonts and sliders never
+    // inherit ReShade's font or scaling.
+    ImGui::InvisibleButton("##lab-shared-panel", ImVec2(width, drawn));
+    ImGui::GetWindowDrawList()->AddImage(ImTextureRef(static_cast<ImTextureID>(s.view.handle)), origin, ImVec2(origin.x + width, origin.y + drawn));
     const auto &io = ImGui::GetIO();
     const bool hovered = ImGui::IsItemHovered();
-    const int x = static_cast<int>(io.MousePos.x - origin.x), y = static_cast<int>(io.MousePos.y - origin.y);
+    // Back into the panel's own coordinates: the app knows nothing about the
+    // size it is being drawn at, and a click has to land where it looks.
+    const int x = static_cast<int>((io.MousePos.x - origin.x) / s.scale), y = static_cast<int>((io.MousePos.y - origin.y) / s.scale);
+    // A grip in the bottom right corner, drawn over the panel's own pixels.
+    // Dragging it sets the size; ReShade.ini remembers it for this game.
+    const float grip = 18.f;
+    const ImVec2 corner(origin.x + width, origin.y + drawn);
+    ImGui::SetCursorScreenPos(ImVec2(corner.x - grip, corner.y - grip));
+    ImGui::InvisibleButton("##lab-panel-grip", ImVec2(grip, grip));
+    const bool on_grip = ImGui::IsItemHovered() || s.sizing;
+    auto *list = ImGui::GetWindowDrawList();
+    const ImU32 ink = on_grip ? IM_COL32(255, 255, 255, 220) : IM_COL32(255, 255, 255, 90);
+    for (int i = 1; i <= 3; ++i) {
+        const float step = i * 5.f;
+        list->AddLine(ImVec2(corner.x - step, corner.y - 2.f), ImVec2(corner.x - 2.f, corner.y - step), ink, 1.5f);
+    }
+    // Never let it grow past the screen: the grip lives in the panel's bottom
+    // right corner, and a panel taller than the display would take the grip off
+    // with it, leaving no way to make it small again.
+    const float fits = std::min(io.DisplaySize.x / panel_width, io.DisplaySize.y / float(bridge.height));
+    const float ceiling = std::max(min_scale, std::min(fits, max_scale));
+    if (s.scale > ceiling) s.scale = ceiling;
+    if (ImGui::IsItemActive()) {
+        s.sizing = true;
+        // Follow the corner the pointer is actually dragging, along the
+        // diagonal, so the panel keeps its shape.
+        const float wanted = (io.MousePos.x - origin.x) / panel_width;
+        s.scale = std::clamp(wanted, min_scale, ceiling);
+    } else if (s.sizing) {
+        s.sizing = false;
+        save_scale(runtime, s.scale);
+    }
+    if (s.sizing || on_grip) return;
     if (hovered && y < 52 && x < 320 && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) s.moving = true;
     if (s.moving) {
         if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) s.moving = false;
@@ -338,12 +389,14 @@ void compact_draw(reshade::api::effect_runtime *runtime) {
     // Escape and the hotkey still arrive: ReShade keeps reading input for
     // itself while it withholds it from the game.
     runtime->block_input_next_frame();
-    const float height = std::min(float(s.bridge.height ? s.bridge.height : 806), std::max(120.f, io.DisplaySize.y));
-    s.position.x = std::clamp(s.position.x, 0.f, std::max(0.f, io.DisplaySize.x - panel_width));
+    if (s.scale <= 0.f) s.scale = load_scale(runtime);
+    const float height = std::min(float(s.bridge.height ? s.bridge.height : 806) * s.scale, std::max(120.f, io.DisplaySize.y));
+    const float window_width = panel_width * s.scale;
+    s.position.x = std::clamp(s.position.x, 0.f, std::max(0.f, io.DisplaySize.x - window_width));
     s.position.y = std::clamp(s.position.y, 0.f, std::max(0.f, io.DisplaySize.y - height));
     ImGui::SetNextWindowDockID(0, ImGuiCond_Always);
     ImGui::SetNextWindowPos(s.position, ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(panel_width, height), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(window_width, height), ImGuiCond_Always);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
     if (ImGui::Begin("##DLSSLabCompact", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoSavedSettings)) {
