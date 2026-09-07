@@ -857,7 +857,7 @@ async function openSheet(dir, keepLog = false) {
         <button class="btn-install" id="doInstall"${d.ok && pick && !pick.installIssue && routesFor(pick).length ? '' : ' disabled'}>${installLabel(d, pick, dir)}</button>
         <button class="btn-restore" id="doRestore"${d.hasBackup ? '' : ' disabled'}>${t('restore')}</button>
       </div>
-      <div class="job-toolbar"><button class="ghost sm accent" id="shareResult">${t('shareResult')}</button><button class="ghost sm" id="copyJob"${jobLines.length ? '' : ' disabled'}>${t('copyLog')}</button><button class="ghost sm" id="saveDiag">${t('saveDiagnostics')}</button></div>
+      <div class="job-toolbar"><button class="ghost sm accent" id="shareResult">${t('menuCommunity')}</button><button class="ghost sm" id="copyJob"${jobLines.length ? '' : ' disabled'}>${t('copyLog')}</button><button class="ghost sm" id="saveDiag">${t('saveDiagnostics')}</button></div>
       <div class="job" id="job" role="status" aria-live="polite">${esc(jobLines.join('\n') || t('jobReady'))}</div>
     </div>`;
 
