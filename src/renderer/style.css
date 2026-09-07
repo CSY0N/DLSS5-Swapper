@@ -1493,3 +1493,11 @@ body { cursor: default; }
   transition: color .16s ease, border-color .16s ease;
 }
 .community-route-filter button:hover { color: var(--text); border-color: var(--accent); }
+
+/* The way into the community from a game that is already open. It is the one
+   new thing in this row, so it carries the accent; the rest stay quiet. */
+.job-toolbar .ghost.accent {
+  color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  margin-inline-end: auto;
+}
+.job-toolbar .ghost.accent:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); border-color: var(--accent); }
