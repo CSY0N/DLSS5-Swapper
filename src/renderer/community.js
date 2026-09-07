@@ -343,17 +343,30 @@
     });
 
     $('communityCardClose').onclick = closeCard; $('communityCardDialog').addEventListener('cancel', event => { event.preventDefault(); closeCard(); });
-    $('communityCardBody').onclick = async event => { const button = event.target.closest('[data-reaction]'); if (!button) return;
-      const key = `${button.dataset.report}:${button.dataset.reaction}`;
+    $('communityCardBody').onclick = async event => {
+      const button = event.target.closest('[data-reaction]');
+      if (!button) return;
+      const report = button.dataset.report, emoji = button.dataset.reaction;
+      const key = `${report}:${emoji}`;
       const on = state.mine[key] !== true;
+
       button.disabled = true;
-      const response = await window.lab.communityReaction(button.dataset.report, button.dataset.reaction, on);
+      const response = await window.lab.communityReaction(report, emoji, on);
       button.disabled = false;
-      if (response?.ok) {
-        if (on) { state.mine[key] = true; burst(button.closest('.community-comment-card'), button.dataset.reaction); }
-        else delete state.mine[key];
-        saveMine();
-      } if (!response?.ok) return void ($('communityNotice').textContent = response?.message || text().reactionFailed); const latest = await window.lab.communityCard(state.active.key, null); if (latest?.ok) paintCard(latest.card); };
+      if (!response?.ok) { $('communityNotice').textContent = response?.message || text().reactionFailed; return; }
+
+      if (on) state.mine[key] = true; else delete state.mine[key];
+      saveMine();
+
+      // Repaint first. It replaces every comment in the list, so anything added
+      // to the old card - the celebration included - goes with it; the card to
+      // celebrate in is the new one, found again by the report it belongs to.
+      const latest = await window.lab.communityCard(state.active.key, null);
+      if (latest?.ok) paintCard(latest.card);
+      if (!on) return;
+      const painted = $('communityCardBody').querySelector(`[data-reaction][data-report="${CSS.escape(report)}"]`);
+      burst(painted && painted.closest('.community-comment-card'), emoji);
+    };
     $('communityReportClose').onclick = closeReport; $('communityReportCancel').onclick = closeReport; $('communityReportDialog').addEventListener('cancel', event => { event.preventDefault(); closeReport(); });
     $('communityReportRoute').onchange = updatePrivacy; $('communityReportApi').onchange = updatePrivacy;
     document.querySelector('.community-verdicts').onclick = event => { const button = event.target.closest('[data-verdict]'); if (!button) return; state.verdict = button.dataset.verdict; document.querySelectorAll('.community-verdicts button').forEach(item => item.classList.toggle('selected', item === button)); };
