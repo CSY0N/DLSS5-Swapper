@@ -1357,3 +1357,18 @@ body { cursor: default; }
   background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 @media (prefers-reduced-motion: reduce) { .community-reactions button { transition: none } }
+
+/* The little celebration when you add a reaction. It lives inside the card it
+   belongs to, takes no clicks, and clears itself up. */
+.community-burst { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 3; border-radius: inherit; }
+.community-burst span {
+  position: absolute; bottom: -6%; font-size: var(--size); line-height: 1;
+  will-change: transform, opacity; opacity: 0;
+  animation: community-rise-away var(--life) cubic-bezier(.18,.66,.32,1) var(--delay) forwards;
+}
+@keyframes community-rise-away {
+  0%   { transform: translate3d(0,0,0) scale(.35) rotate(0deg); opacity: 0 }
+  14%  { opacity: 1 }
+  70%  { opacity: 1 }
+  100% { transform: translate3d(var(--dx), var(--dy), 0) scale(var(--scale)) rotate(var(--spin)); opacity: 0 }
+}

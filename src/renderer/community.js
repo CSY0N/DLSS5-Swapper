@@ -157,6 +157,37 @@
     }).join('');
   }
 
+  // A small celebration inside the card you pressed, and nowhere else. It is
+  // drawn locally and never sent anywhere: the person who pressed the button is
+  // the only one who sees it, which is what makes it feel like a reply to them
+  // rather than an announcement.
+  const BURST = 16;
+  function burst(card, emoji) {
+    if (!card || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const layer = document.createElement('span');
+    layer.className = 'community-burst';
+    const random = (low, high) => low + Math.random() * (high - low);
+    let longest = 0;
+    for (let i = 0; i < BURST; i++) {
+      const piece = document.createElement('span');
+      piece.textContent = emoji;
+      // A few come at the camera - big, fast, straight up - while the rest
+      // drift like something falling upward past you.
+      const near = i % 5 === 0;
+      const life = random(near ? 900 : 1200, near ? 1300 : 2000);
+      const delay = random(0, 420);
+      longest = Math.max(longest, life + delay);
+      piece.style.cssText = `left:${random(4, 92)}%;` +
+        `--size:${near ? random(20, 30) : random(11, 20)}px;` +
+        `--dx:${random(-38, 38)}px;--dy:${random(-96, -168)}px;` +
+        `--scale:${near ? random(1.9, 2.7) : random(.7, 1.25)};` +
+        `--spin:${random(-40, 40)}deg;--life:${life}ms;--delay:${delay}ms;`;
+      layer.appendChild(piece);
+    }
+    card.appendChild(layer);
+    setTimeout(() => layer.remove(), longest + 260);
+  }
+
   function commentMarkup(comment) {
     const by = comment.by || {};
     // Which of these this install has pressed is remembered here rather than
@@ -318,7 +349,11 @@
       button.disabled = true;
       const response = await window.lab.communityReaction(button.dataset.report, button.dataset.reaction, on);
       button.disabled = false;
-      if (response?.ok) { if (on) state.mine[key] = true; else delete state.mine[key]; saveMine(); } if (!response?.ok) return void ($('communityNotice').textContent = response?.message || text().reactionFailed); const latest = await window.lab.communityCard(state.active.key, null); if (latest?.ok) paintCard(latest.card); };
+      if (response?.ok) {
+        if (on) { state.mine[key] = true; burst(button.closest('.community-comment-card'), button.dataset.reaction); }
+        else delete state.mine[key];
+        saveMine();
+      } if (!response?.ok) return void ($('communityNotice').textContent = response?.message || text().reactionFailed); const latest = await window.lab.communityCard(state.active.key, null); if (latest?.ok) paintCard(latest.card); };
     $('communityReportClose').onclick = closeReport; $('communityReportCancel').onclick = closeReport; $('communityReportDialog').addEventListener('cancel', event => { event.preventDefault(); closeReport(); });
     $('communityReportRoute').onchange = updatePrivacy; $('communityReportApi').onchange = updatePrivacy;
     document.querySelector('.community-verdicts').onclick = event => { const button = event.target.closest('[data-verdict]'); if (!button) return; state.verdict = button.dataset.verdict; document.querySelectorAll('.community-verdicts button').forEach(item => item.classList.toggle('selected', item === button)); };
