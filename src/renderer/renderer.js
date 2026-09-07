@@ -721,8 +721,19 @@ async function showUpdateNotice() {
   if (!link || !window.lab.checkUpdate) return;
   let answer = null;
   try { answer = await window.lab.checkUpdate(); } catch { return; }
-  if (!answer || !answer.newer) return;
+  if (!answer) return;
+  // A failed lookup used to look exactly like "nothing new", so someone on an
+  // old build whose check never completed was told nothing at all and had no
+  // reason to go and look. Say which of the two it was.
+  if (!answer.latest) {
+    link.textContent = t('updateCheckFailed');
+    link.classList.add('muted');
+    link.classList.remove('hidden');
+    return;
+  }
+  if (!answer.newer) return;
   link.textContent = t('updateAvailable', answer.latest);
+  link.classList.remove('muted');
   link.classList.remove('hidden');
 }
 

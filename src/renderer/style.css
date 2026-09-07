@@ -160,6 +160,8 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round
   color: var(--accent); text-decoration: none;
 }
 .status-update:hover { text-decoration: underline; }
+/* A check that could not run is worth saying, but quietly: it is not news. */
+.status-update.muted { color: var(--muted); font-weight: 500; pointer-events: none; }
 .bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s ease; }
 
 /* ---------------- main ---------------- */
