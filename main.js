@@ -541,6 +541,13 @@ ipcMain.handle('community-withdraw', (_event, id) => communityAnswer(async () =>
 ipcMain.handle('community-reaction', (_event, id, emoji, on) => communityAnswer(async () => ({
   result: await community().react(id, emoji, on)
 })));
+// The line over the title: where the game came from, and what the store calls
+// it. Both are already known - nothing here is guessed at.
+function kickerFor(dir, game) {
+  let genres = [];
+  try { genres = ((loadState().art || {})[keyFor(dir)] || {}).genres || []; } catch { /* none yet */ }
+  return [game.launcher, genres[0]].filter(Boolean).join(' · ') || null;
+}
 // The banner the library already downloaded for this folder, if there is one.
 function heroFor(dir) {
   try {
@@ -564,6 +571,7 @@ ipcMain.handle('community-prefill', async (_event, dir) => {
       // so the report header can have it without asking the network again - and
       // a game found in a folder has no store id to look one up with anyway.
       hero: heroFor(dir),
+      kicker: kickerFor(dir, game),
       game: { store, storeId: store && game.id ? String(game.id) : null, title: game.name,
         exe: scan.chosen?.rel ? path.basename(scan.chosen.rel) : null },
       route: ['feeder', 'renodx', 'optiscaler'].includes(route) ? route : null,

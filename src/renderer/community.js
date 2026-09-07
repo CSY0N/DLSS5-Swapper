@@ -434,6 +434,7 @@
           ? `<img src="${esc(report.poster)}" alt="">`
           : `<span class="community-initials">${esc(initialsOf(report.title))}</span>`}</span>
         <span class="community-head-copy">
+          ${report.kicker ? `<span class="community-kicker">${esc(report.kicker)}</span>` : ''}
           <h3>${esc(report.title)}</h3>
           <p>${esc(text().shareHint)}</p>
           <span class="community-head-chips">
