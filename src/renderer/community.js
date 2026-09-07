@@ -285,6 +285,32 @@
     $('communityRefresh').onclick = render;
     $('communityClear').onclick = () => { state.filters = { q: '', route: 'all', api: 'all', status: 'all' }; for (const id of ['communitySearch','communityRoute','communityApi','communityStatus']) $(id).value = id === 'communitySearch' ? '' : 'all'; render(); };
     $('communityCards').onclick = event => { const card = event.target.closest('[data-community-card]'); if (card) openCard(card.dataset.communityCard); };
+    // Where the pointer is inside a comment card, handed to CSS so the gold rim
+    // lights the edge nearest it. One listener for the whole list, and the work
+    // is deferred to the next frame so a fast sweep cannot queue up a hundred
+    // style writes.
+    let pointerFrame = 0, pointerCard = null, pointerX = 0, pointerY = 0;
+    $('communityCardBody').addEventListener('pointermove', event => {
+      const card = event.target.closest('.community-comment-card');
+      if (!card) return;
+      const box = card.getBoundingClientRect();
+      pointerCard = card;
+      pointerX = event.clientX - box.left;
+      pointerY = event.clientY - box.top;
+      if (pointerFrame) return;
+      pointerFrame = requestAnimationFrame(() => {
+        pointerFrame = 0;
+        if (!pointerCard) return;
+        pointerCard.style.setProperty('--mx', `${pointerX}px`);
+        pointerCard.style.setProperty('--my', `${pointerY}px`);
+      });
+    });
+    // Leaving takes the light with it rather than freezing it mid-card.
+    $('communityCardBody').addEventListener('pointerout', event => {
+      const card = event.target.closest('.community-comment-card');
+      if (card && !card.contains(event.relatedTarget)) { card.style.removeProperty('--mx'); card.style.removeProperty('--my'); }
+    });
+
     $('communityCardClose').onclick = closeCard; $('communityCardDialog').addEventListener('cancel', event => { event.preventDefault(); closeCard(); });
     $('communityCardBody').onclick = async event => { const button = event.target.closest('[data-reaction]'); if (!button) return;
       const key = `${button.dataset.report}:${button.dataset.reaction}`;

@@ -306,7 +306,35 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round
   border: 1px solid var(--line); border-radius: 16px; padding: 16px; background: var(--glass);
   transition: transform .2s cubic-bezier(.22,.9,.3,1), border-color .2s ease, box-shadow .2s ease;
 }
-.community-comment-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.18); box-shadow: 0 14px 34px rgba(0,0,0,.28); }
+.community-comment-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.10); box-shadow: 0 14px 34px rgba(0,0,0,.28); }
+
+/* A gold rim that lights the edge nearest the pointer and travels with it.
+   The gradient is painted over the whole card, then masked down to the border
+   itself: fill the box, punch out everything inside the 1px frame, and only
+   the frame is left to glow. */
+.community-comment-card::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1.2px;
+  pointer-events: none; opacity: 0; transition: opacity .28s ease;
+  background:
+    radial-gradient(210px circle at var(--mx, 50%) var(--my, 50%),
+      rgba(255,206,110,.95) 0%, rgba(232,168,62,.55) 26%, rgba(214,150,40,0) 62%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+}
+.community-comment-card:hover::before { opacity: 1; }
+
+/* And the faintest warmth inside the glass, so the rim is not floating on its
+   own. Behind everything, above nothing. */
+.community-comment-card::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  opacity: 0; transition: opacity .28s ease;
+  background: radial-gradient(240px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255,196,86,.07) 0%, rgba(255,196,86,0) 70%);
+}
+.community-comment-card:hover::after { opacity: 1; }
+.community-comment-card > * { position: relative; z-index: 1; }
 .community-sheen {
   position: absolute; inset: 0; pointer-events: none; opacity: 0;
   background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,.13) 50%, transparent 62%);
@@ -349,6 +377,8 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round
 @media (prefers-reduced-motion: reduce) {
   .community-comment-card, .community-route-count, .community-close { transition: none }
   .community-comment-card:hover .community-sheen { animation: none; opacity: 0 }
+  /* The rim still marks what the pointer is on; it simply stops fading. */
+  .community-comment-card::before, .community-comment-card::after { transition: none }
 }
 
 .community-verdicts { border: 0; padding: 0; margin: 17px 0; display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; }
