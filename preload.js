@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('lab', {
   scan: (dir) => ipcRenderer.invoke('scan', dir),
   history: () => ipcRenderer.invoke('history'),
   copyText: (text) => ipcRenderer.invoke('copy-text', text),
+  saveDiagnostics: (dir, activity) => ipcRenderer.invoke('save-diagnostics', dir, activity),
   gameMenu: (dir, options) => ipcRenderer.invoke('game-menu', dir, options),
   settings: () => ipcRenderer.invoke('settings'),
   setGroupGamesByStore: (enabled) => ipcRenderer.invoke('set-group-games-by-store', enabled),

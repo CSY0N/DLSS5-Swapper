@@ -8,6 +8,8 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const crypto = require('crypto');
 
+const os = require('os');
+const diagnostics = require('./src/core/diagnostics');
 const { scanGame } = require('./src/core/scan.js');
 const { discover, folder, dedupe, isInside, steam } = require('./src/library');
 const { contextForSteamGame, createSetupRunner } = require('./src/core/proton');
@@ -408,6 +410,60 @@ ipcMain.handle('history', () => {
   let warning = false;
   const rows = history().list(mutationBusy ? [] : knownFolders(loadState(), lastGames), () => { warning = true; });
   return { rows, warning };
+});
+
+// One file with everything a report needs: the app's own log, the game's
+// ReShade and Feeder logs, the install manifest, the driver. Asking for those
+// one at a time costs a round trip per report and half arrive incomplete.
+//
+// Nothing is gathered silently. The person is shown every file that would go in
+// and where it came from, and chooses where to save it.
+ipcMain.handle('save-diagnostics', async (event, dir, activity) => {
+  if (typeof dir !== 'string' || !path.isAbsolute(dir)) return { ok: false };
+  const window = BrowserWindow.fromWebContents(event.sender);
+  const userData = app.getPath('userData');
+  let exeDir = null;
+  try {
+    const scan = await scanGame(dir);
+    if (scan.chosen) exeDir = path.dirname(scan.chosen.path);
+  } catch { /* the folder alone is still worth reporting */ }
+
+  const found = diagnostics.sources({ gameDir: dir, exeDir, userData });
+  const list = found.length
+    ? found.map(item => `\u2022 ${item.file}  (${Math.ceil(item.bytes / 1024)} KB)`).join('\n')
+    : 'No log files were found for this game yet.';
+  const consent = await dialog.showMessageBox(window, {
+    type: 'question', title: 'Save diagnostics',
+    message: 'These files will be copied into one text file:',
+    detail: `${list}\n\nIt also records the app version, your GPU and driver, and this session's activity log. Game folder paths appear in it. Read it before attaching it anywhere.`,
+    buttons: ['Cancel', 'Choose where to save'], defaultId: 1, cancelId: 0
+  });
+  if (consent.response !== 1) return { ok: false, cancelled: true };
+
+  let gpu = null;
+  try { gpu = guards.driverNames(await guards.gpuInfo()); } catch { /* advice only */ }
+  const { text } = diagnostics.report({
+    gameDir: dir, exeDir, userData,
+    facts: {
+      app: app.getVersion(), electron: process.versions.electron, platform: `${process.platform} ${os.release()}`,
+      gpu, game: path.basename(dir), 'game folder': dir, 'executable folder': exeDir,
+      activity: typeof activity === 'string' && activity.length <= 512 * 1024 ? `\n${activity}` : null
+    }
+  });
+
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const picked = await dialog.showSaveDialog(window, {
+    title: 'Save diagnostics',
+    defaultPath: path.join(app.getPath('documents'), `dlss5-swapper-diagnostics-${stamp}.txt`),
+    filters: [{ name: 'Text', extensions: ['txt'] }]
+  });
+  if (picked.canceled || !picked.filePath) return { ok: false, cancelled: true };
+  try {
+    await fs.promises.writeFile(picked.filePath, text, 'utf8');
+    return { ok: true, file: picked.filePath, count: found.length };
+  } catch (error) {
+    return { ok: false, message: error.message };
+  }
 });
 
 ipcMain.handle('copy-text', (_event, text) => {
@@ -850,6 +906,27 @@ ipcMain.handle('art-fetch', async (_event, dir, name, appid) => {
 // sent, no download started: the answer is a version number and a link the
 // person may click. Any failure is silence - this must never delay a start.
 let updateAnswer = null;
+// Nothing wrote the app's own failures down anywhere, so a crash left the
+// person with nothing to report but a description. Keep the last few in
+// userData, bounded, and let the diagnostics file carry them.
+function recordCrash(kind, error) {
+  try {
+    const file = path.join(app.getPath('userData'), 'crash.log');
+    const entry = `[${new Date().toISOString()}] ${kind}: ${error && error.stack ? error.stack : String(error)}\n\n`;
+    let previous = '';
+    try { previous = fs.readFileSync(file, 'utf8'); } catch { /* first one */ }
+    // Newest last, oldest dropped: 256 KB is plenty and cannot grow unbounded.
+    const combined = (previous + entry).slice(-256 * 1024);
+    fs.writeFileSync(file, combined, 'utf8');
+  } catch { /* a failure to record a failure is not worth a second one */ }
+}
+// Guarded because main.js is also evaluated in test sandboxes that are not a
+// real process; a module should not install global handlers regardless.
+if (typeof process !== 'undefined' && typeof process.on === 'function') {
+  process.on('uncaughtException', (error) => recordCrash('uncaughtException', error));
+  process.on('unhandledRejection', (reason) => recordCrash('unhandledRejection', reason));
+}
+
 const releaseTag = /^v?(\d+)\.(\d+)\.(\d+)/;
 function newerRelease(current, latest) {
   const a = releaseTag.exec(current), b = releaseTag.exec(latest);

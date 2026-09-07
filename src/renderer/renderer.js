@@ -817,12 +817,23 @@ async function openSheet(dir, keepLog = false) {
         <button class="btn-install" id="doInstall"${d.ok && pick && !pick.installIssue && routesFor(pick).length ? '' : ' disabled'}>${installLabel(d, pick, dir)}</button>
         <button class="btn-restore" id="doRestore"${d.hasBackup ? '' : ' disabled'}>${t('restore')}</button>
       </div>
-      <div class="job-toolbar"><button class="ghost sm" id="copyJob"${jobLines.length ? '' : ' disabled'}>${t('copyLog')}</button></div>
+      <div class="job-toolbar"><button class="ghost sm" id="copyJob"${jobLines.length ? '' : ' disabled'}>${t('copyLog')}</button><button class="ghost sm" id="saveDiag">${t('saveDiagnostics')}</button></div>
       <div class="job" id="job" role="status" aria-live="polite">${esc(jobLines.join('\n') || t('jobReady'))}</div>
     </div>`;
 
   $('sheetClose').onclick = closeSheet;
   $('copyJob').onclick = () => copyText([sheetGame.name, sheetGame.dir, '', ...jobLines].join('\n'));
+  // Everything an issue report needs, in one file, instead of four asked for
+  // one at a time.
+  $('saveDiag').onclick = async () => {
+    const button = $('saveDiag');
+    button.disabled = true;
+    try {
+      const r = await window.lab.saveDiagnostics(sheetGame.dir, jobLines.join('\n'));
+      if (r && r.ok) $('statusText').textContent = t('diagnosticsSaved', r.count);
+      else if (r && r.message) $('statusText').textContent = r.message;
+    } catch (e) { $('statusText').textContent = e.message; } finally { button.disabled = false; }
+  };
   wireExePicker(dir);
   const apiSelect = $('apiChoice');
   if (apiSelect) apiSelect.onchange = async () => {
