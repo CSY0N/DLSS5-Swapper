@@ -17,11 +17,13 @@
   <a href="https://buymeacoffee.com/rakanki911"><img height="20" src="https://cdn.buymeacoffee.com/buttons/v2/lato-yellow.png" alt="Buy me a coffee"></a>
 </p>
 
-## Download 2.2.2
+## Download
 
-[**Windows Installer**](https://github.com/rakanki911/DLSS5-Swapper/releases/download/v2.2.2/DLSS5-Swapper-Setup-2.2.2.exe) ·
-[**Portable**](https://github.com/rakanki911/DLSS5-Swapper/releases/download/v2.2.2/DLSS5-Swapper-2.2.2-portable.exe) ·
-[Checksums](https://github.com/rakanki911/DLSS5-Swapper/releases/download/v2.2.2/SHA256SUMS.txt)
+[**Windows Installer**](https://github.com/rakanki911/DLSS5-Swapper/releases/latest) ·
+[**Portable**](https://github.com/rakanki911/DLSS5-Swapper/releases/latest) ·
+[Checksums](https://github.com/rakanki911/DLSS5-Swapper/releases/latest)
+
+Both are on the latest release page, with `SHA256SUMS.txt` beside them.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/rakanki911/DLSS5-Swapper/7415065e5c5437441d0e0b0a0362d0ada6d86e15/docs/screenshots/01-home.png" alt="Home" width="100%">
@@ -157,8 +159,8 @@ DLSS5-Feeder **0.14.0-beta.4** (was 0.12.0) · OptiScaler DLSS-NR
 **0.2.0-patch1** (was 0.1.1.5) · LumeniteFX updated · ReShade 6.8.0 and
 dgVoodoo2 2.87.4 already current.
 
-[Full 2.2.2 notes →](https://github.com/rakanki911/DLSS5-Swapper/releases/tag/v2.2.2) ·
-[What arrived in 2.2.1 →](https://github.com/rakanki911/DLSS5-Swapper/releases/tag/v2.2.1)
+[Full 2.2.3 notes →](https://github.com/rakanki911/DLSS5-Swapper/releases/tag/v2.2.3) ·
+[What arrived in 2.2.2 →](https://github.com/rakanki911/DLSS5-Swapper/releases/tag/v2.2.2)
 
 ## New in 2.2.1
 

@@ -81,7 +81,7 @@ function checkConflicts(gameDir, exePath, manifest, api) {
   const names = new Set([...fs.readdirSync(exeDir), 'dxgi.dll', 'winmm.dll', 'OptiScaler.ini']);
   const hook = hookFor(api);
   for (const name of names) {
-    if (!/^(?:dxgi|winmm|version|dbghelp|d3d12|d3d11|d3d9|opengl32|wininet|winhttp|nvngx|nvapi64|OptiScaler)\.(?:dll|ini|asi)$/i.test(name) && !/\.asi$/i.test(name)) continue;
+    if (!/^(?:dxgi|winmm|version|dbghelp|dbgcore|d3d12|d3d11|d3d9|opengl32|wininet|winhttp|nvngx|nvapi64|OptiScaler)\.(?:dll|ini|asi)$/i.test(name) && !/\.asi$/i.test(name)) continue;
     const rel = path.relative(gameDir, path.join(exeDir, name));
     if (added.has(rel.toLowerCase())) continue;
     const file = replacements.has(rel.toLowerCase()) ? originalPath(gameDir, manifest, rel) : safePath(gameDir, rel);
@@ -89,6 +89,12 @@ function checkConflicts(gameDir, exePath, manifest, api) {
     // A pre-existing ReShade under the selected proxy name can be replaced
     // with a tracked backup. Other proxies require explicit user cleanup.
     if (name.toLowerCase() === hook && pe.versionMentions(file, 'ReShade')) continue;
+    // dbghelp/dbgcore are on the list because Ultimate ASI Loader ships under
+    // those names - but they are also genuine Windows components that games
+    // ship for their own crash reporting. Cyberpunk 2077 carries both, and
+    // every OptiScaler install there was refused as "another loader/mod".
+    // Microsoft own the real ones; the loaders do not claim to.
+    if (/^dbg(?:help|core)\.dll$/i.test(name) && pe.versionMentions(file, 'Microsoft')) continue;
     throw fail('errOptiConflict', `Conflicting pre-existing file: ${path.join(exeDir, name)}. Restore/remove the other mod with its own installer first.`);
   }
   const pluginDir = path.join(exeDir, 'OptiScaler', 'plugins');
