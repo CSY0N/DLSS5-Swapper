@@ -234,6 +234,20 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round
 .community-dot.mixed, .community-dot.yellow { background: #d99e00; box-shadow: 0 0 9px rgba(217,158,0,.45); }
 .community-dot.broken, .community-dot.red { background: #e54d58; box-shadow: 0 0 9px rgba(229,77,88,.45); }
 .community-report-dialog { width: min(1020px, calc(100vw - 48px)); }
+/* The design is a blue-tinted surface with the cards lifted clearly out of it,
+   not the near-black the rest of the app uses. Scoped here so nothing else
+   changes underneath. */
+.community-dialog {
+  --panel: #101a26;
+  --glass: #17232f;
+  --line: rgba(255, 255, 255, .085);
+  --muted: #93a3b4;
+  --dim: #6d7f92;
+}
+:root[data-theme="light"] .community-dialog {
+  --panel: #ffffff; --glass: #f4f7fa; --line: rgba(16, 24, 32, .09);
+  --muted: #5a6a7a; --dim: #7d8c9b;
+}
 .community-dialog {
   /* The reset at the top of this file sets margin:0 on everything, which takes
      away the margin:auto a modal <dialog> is centred by - so without this it
@@ -1599,7 +1613,8 @@ body { cursor: default; }
 #communityPrivacyData { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
 #communityPrivacyData > div {
   display: flex; align-items: center; gap: 13px; font-size: 13.5px;
-  padding: 15px 16px; border-radius: 13px; background: var(--glass); border: 1px solid var(--line);
+  padding: 15px 16px; border-radius: 13px; background: var(--glass);
+  border: 1px solid rgba(255,255,255,.06);
 }
 #communityPrivacyData > div .c-icon { width: 16px; height: 16px; color: var(--muted); }
 #communityPrivacyData > div > span { color: var(--muted); }
