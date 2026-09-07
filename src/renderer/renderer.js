@@ -1123,18 +1123,99 @@ async function performGameAction(action, dir) {
   }
 }
 
+// The right-click menu, drawn here rather than by the operating system: a
+// native menu cannot carry the game's own art, an icon per line, or the app's
+// own edges. It resolves to the same action names the native one returned, so
+// nothing that acts on the result had to change.
+const MENU_ICON = {
+  details: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h4M9 17h3"/>',
+  open: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  copy: '<path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>',
+  scan: '<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v5h-5"/>',
+  poster: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 18 5-5 4 4 3-3 4 4"/>',
+  restore: '<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/>',
+  community: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
+  hide: '<path d="m3 3 18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.4 5.2A9.6 9.6 0 0 1 12 5c5 0 9 4.5 9 7a11 11 0 0 1-2.4 3.6M6.3 6.4A11.6 11.6 0 0 0 3 12c0 2.5 4 7 9 7a9.7 9.7 0 0 0 3.3-.6"/>'
+};
+// Order, and where a rule falls between groups.
+const MENU_ITEMS = [['details'], ['open', 'copy'], ['scan', 'poster', 'restore'], ['community'], ['hide']];
+
+// Two letters when a game has no art, so the head is never an empty square.
+const menuInitials = name => String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+
+function closeGameMenu() {
+  const menu = $('gameMenu');
+  menu.classList.add('hidden');
+  menu.setAttribute('aria-hidden', 'true');
+  menu.innerHTML = '';
+}
+
+// Resolves to an action name, or null when it is dismissed.
+function showGameMenu(game, position, { busy = false } = {}) {
+  return new Promise(resolve => {
+    const menu = $('gameMenu');
+    const labels = {
+      details: t('menuDetails'), open: t('menuOpen'), copy: t('menuCopyPath'), scan: t('menuScan'),
+      poster: t('menuPoster'), restore: t('restore'), community: t('menuCommunity'), hide: t('menuHide')
+    };
+    const disabled = new Set(busy ? ['scan', 'poster', 'restore', 'hide'] : []);
+
+    const art = game.poster && game.poster.url;
+    menu.innerHTML = `
+      <div class="ctx-head">
+        <span class="ctx-art">${art ? `<img src="${esc(art)}" alt="">` : `<i>${esc(menuInitials(game.name))}</i>`}</span>
+        <span class="ctx-name"><b>${esc(game.name)}</b>${game.summary ? `<small>${esc(game.summary)}</small>` : ''}</span>
+      </div>
+      ${MENU_ITEMS.map(group => `<div class="ctx-group">${group.map(id => `
+        <button type="button" role="menuitem" data-menu="${id}"${disabled.has(id) ? ' disabled' : ''}>
+          <svg viewBox="0 0 24 24" aria-hidden="true">${MENU_ICON[id]}</svg>
+          <span>${esc(labels[id])}</span>
+          ${id === 'details' ? '<svg class="ctx-go" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>' : ''}
+        </button>`).join('')}</div>`).join('')}`;
+
+    menu.classList.remove('hidden');
+    menu.setAttribute('aria-hidden', 'false');
+    // Placed after it is measurable, and never off the edge of the window.
+    const box = menu.getBoundingClientRect();
+    const x = Math.max(8, Math.min(position.x, window.innerWidth - box.width - 8));
+    const y = Math.max(8, Math.min(position.y, window.innerHeight - box.height - 8));
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+    const first = menu.querySelector('button:not([disabled])');
+    if (first) first.focus({ preventScroll: true });
+
+    const finish = (action) => {
+      document.removeEventListener('pointerdown', onOutside, true);
+      document.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('blur', onBlur);
+      closeGameMenu();
+      resolve(action);
+    };
+    const onOutside = (event) => { if (!menu.contains(event.target)) finish(null); };
+    const onKey = (event) => { if (event.key === 'Escape') { event.preventDefault(); finish(null); } };
+    const onBlur = () => finish(null);
+    menu.onclick = (event) => {
+      const item = event.target.closest('[data-menu]');
+      if (item && !item.disabled) finish(item.dataset.menu);
+    };
+    document.addEventListener('pointerdown', onOutside, true);
+    document.addEventListener('keydown', onKey, true);
+    window.addEventListener('blur', onBlur);
+  });
+}
+
 async function openGameMenu(card, position) {
   if (contextMenuOpen) return;
   const dir = card.dataset.dir;
   if (!state.games.some(game => game.dir === dir)) return;
   contextMenuOpen = true;
-  const labels = {
-    details: t('menuDetails'), open: t('menuOpen'), copy: t('menuCopyPath'),
-    scan: t('menuScan'), poster: t('menuPoster'), restore: t('restore'), community: t('menuCommunity'), hide: t('menuHide'),
-    cancel: t('cancel'), confirmRestore: t('menuConfirmRestore'), restoreHint: t('menuRestoreHint')
-  };
+  const game = state.games.find(item => item.dir === dir);
   try {
-    const action = await window.lab.gameMenu(dir, { labels, position, busy: jobRunning || cardActionsBusy.size > 0 });
+    const action = await showGameMenu(game, position, { busy: jobRunning || cardActionsBusy.size > 0 });
+    // The native menu used to ask before a restore. It still gets asked.
+    if (action === 'restore' && !window.confirm(`${t('menuConfirmRestore')}
+
+${t('menuRestoreHint')}`)) return;
     if (action) await performGameAction(action, dir);
   } catch (error) {
     log(t('menuActionFailed', card.getAttribute('aria-label'), error.message));

@@ -1714,3 +1714,56 @@ body { cursor: default; }
   display: block; margin-top: 3px; font-size: 11.5px; font-weight: 500; color: var(--muted); line-height: 1.4;
 }
 .community-privacy > b .c-icon { margin-top: 1px; }
+
+/* ---------------- the right-click menu ---------------- */
+/* Drawn by the app, so it can carry the game's own art and the app's edges.
+   A native menu can carry neither. */
+.ctx-menu {
+  position: fixed; z-index: 60; width: 310px; padding: 8px;
+  border-radius: 18px; border: 1px solid rgba(255,255,255,.09);
+  background: color-mix(in srgb, #0f1822 92%, transparent);
+  backdrop-filter: blur(22px) saturate(1.2);
+  box-shadow: 0 30px 80px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.07);
+  animation: ctx-in .16s cubic-bezier(.22,.9,.3,1) both;
+  -webkit-app-region: no-drag;
+}
+:root[data-theme="light"] .ctx-menu {
+  background: color-mix(in srgb, #ffffff 94%, transparent);
+  border-color: rgba(16,24,32,.10);
+  box-shadow: 0 30px 80px rgba(16,24,32,.22), inset 0 1px 0 rgba(255,255,255,.9);
+}
+@keyframes ctx-in { from { opacity: 0; transform: translateY(-6px) scale(.98) } to { opacity: 1; transform: none } }
+
+.ctx-head { display: flex; align-items: center; gap: 13px; padding: 10px 10px 14px; }
+.ctx-art {
+  width: 52px; height: 52px; flex: none; border-radius: 13px; overflow: hidden;
+  display: grid; place-items: center; border: 1px solid var(--line);
+  background: var(--panel-2); color: var(--dim); font-weight: 700; font-size: 17px;
+}
+.ctx-art img { width: 100%; height: 100%; object-fit: cover; }
+.ctx-name { display: grid; gap: 3px; min-width: 0; }
+.ctx-name b { font-size: 15px; font-weight: 660; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctx-name small { color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* One rule between groups, drawn by the group rather than by an empty element. */
+.ctx-group + .ctx-group { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 6px; }
+.ctx-menu button {
+  display: flex; align-items: center; gap: 14px; width: 100%; cursor: pointer;
+  padding: 11px 13px; border: 0; border-radius: 12px; background: transparent;
+  color: var(--text); font: inherit; font-size: 14.5px; text-align: start;
+  transition: background .13s ease, color .13s ease;
+}
+.ctx-menu button svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; color: var(--muted); }
+.ctx-menu button span { flex: 1; }
+.ctx-menu button .ctx-go { width: 16px; height: 16px; opacity: .5; }
+[dir="rtl"] .ctx-menu button .ctx-go { transform: scaleX(-1); }
+.ctx-menu button:hover:not(:disabled), .ctx-menu button:focus-visible {
+  background: rgba(255,255,255,.07); outline: none;
+}
+.ctx-menu button:hover:not(:disabled) svg, .ctx-menu button:focus-visible svg { color: var(--text); }
+:root[data-theme="light"] .ctx-menu button:hover:not(:disabled) { background: rgba(16,24,32,.06); }
+.ctx-menu button:disabled { opacity: .38; cursor: default; }
+.ctx-menu button[data-menu="hide"]:hover:not(:disabled) { color: #e05a5a; }
+.ctx-menu button[data-menu="hide"]:hover:not(:disabled) svg { color: #e05a5a; }
+
+@media (prefers-reduced-motion: reduce) { .ctx-menu { animation: none } }
