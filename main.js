@@ -5,7 +5,7 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, Menu } = require('electron');
 const fs = require('fs');
 const path = require('path');
-const { pathToFileURL } = require('url');
+const { pathToFileURL, fileURLToPath } = require('url');
 const crypto = require('crypto');
 
 const os = require('os');
@@ -940,12 +940,20 @@ const ART_RULES = 4;
 //
 // The image is downloaded here and handed over as a file:// URL, because the
 // renderer's policy allows no remote images at all - and should not.
+const onDisk = url => {
+  if (typeof url !== 'string' || !url.startsWith('file:')) return false;
+  try { return fs.existsSync(fileURLToPath(url)); } catch { return false; }
+};
 ipcMain.handle('community-art', async (_event, key, title) => {
   if (typeof key !== 'string' || !/^[a-z]+:[A-Za-z0-9._-]{1,64}$/.test(key)) return { none: true };
   const state = loadState();
   const cacheKey = `community-w-${crypto.createHash('sha256').update(key).digest('hex').slice(0, 24)}`;
+  // A remembered picture is only worth serving while the file is still there.
+  // Antivirus quarantine, a cleanup tool or a cleared profile all take these
+  // away, and a record pointing at a missing file renders as a broken image
+  // forever - the cache has to notice rather than insist.
   const cached = state.art && state.art[cacheKey];
-  if (cached) return cached;
+  if (cached && (cached.none || onDisk(cached.cover))) return cached;
 
   const [kind, id] = key.split(':');
   try {
