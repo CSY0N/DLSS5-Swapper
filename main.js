@@ -934,6 +934,54 @@ ipcMain.handle('art-status', () => ({ available: art.available() }));
 // under the old rule fetch again instead of keeping a bad banner forever.
 const ART_RULES = 4;
 
+// A community card is a game somebody else has, so there is no folder to key
+// its artwork by - but a card keyed "steam:<appid>" carries the appid itself,
+// which is the best lookup there is. Everything else falls back to the title.
+//
+// The image is downloaded here and handed over as a file:// URL, because the
+// renderer's policy allows no remote images at all - and should not.
+ipcMain.handle('community-art', async (_event, key, title) => {
+  if (typeof key !== 'string' || !/^[a-z]+:[A-Za-z0-9._-]{1,64}$/.test(key)) return { none: true };
+  const state = loadState();
+  const cacheKey = `community-w-${crypto.createHash('sha256').update(key).digest('hex').slice(0, 24)}`;
+  const cached = state.art && state.art[cacheKey];
+  if (cached) return cached;
+
+  const [kind, id] = key.split(':');
+  try {
+    const hit = await art.look(String(title || '').slice(0, 120), kind === 'steam' ? id : null);
+    if (!hit) {
+      // Remember the miss too: a game with no art must not be looked up again
+      // on every visit to the page.
+      state.art = state.art || {};
+      state.art[cacheKey] = { none: true, fetchedAt: Date.now() };
+      saveState(state);
+      return { none: true };
+    }
+    const dest = path.join(app.getPath('userData'), 'art');
+    // The card is landscape, so this wants the wide art. The tall 600x900
+    // poster would be cropped to a band across the middle of the picture.
+    let cover = null;
+    for (const url of [hit.heroUrl, hit.heroFallbackUrl, hit.coverUrl]) {
+      if (!url) continue;
+      try { cover = pathToFileURL(await art.download(url, path.join(dest, cacheKey + '-wide.jpg'))).href; break; }
+      catch { /* try the next shape */ }
+    }
+    // The opened card shows both: the wide art behind its header, and the tall
+    // poster beside the title the way a store page does.
+    let poster = null;
+    try { poster = pathToFileURL(await art.download(hit.coverUrl, path.join(dest, cacheKey + '-tall.jpg'))).href; }
+    catch { poster = null; }
+    const record = { cover, poster, fetchedAt: Date.now() };
+    state.art = state.art || {};
+    state.art[cacheKey] = record;
+    saveState(state);
+    return record;
+  } catch {
+    return { none: true };
+  }
+});
+
 ipcMain.handle('art-fetch', async (_event, dir, name, appid) => {
   const state = loadState();
   const key = keyFor(dir);

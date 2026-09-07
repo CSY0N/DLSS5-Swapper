@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld('lab', {
   setApiOverride: (dir, exePath, value) => ipcRenderer.invoke('set-api-override', dir, exePath, value),
   artStatus: () => ipcRenderer.invoke('art-status'),
   artFetch: (dir, name, appid) => ipcRenderer.invoke('art-fetch', dir, name, appid),
+  communityArt: (key, title) => ipcRenderer.invoke('community-art', key, title),
   touch: (dir) => ipcRenderer.invoke('touch', dir),
   recents: () => ipcRenderer.invoke('recents'),
   details: (dir) => ipcRenderer.invoke('details', dir),

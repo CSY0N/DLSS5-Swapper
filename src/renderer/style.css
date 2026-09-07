@@ -157,19 +157,78 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round
 }
 .community-filters input:focus, .community-filters select:focus, .community-report-grid select:focus, .community-comment textarea:focus, .community-profile input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(108,193,10,.12); }
 .community-notice { min-height: 20px; color: var(--muted); margin: 0 0 10px; }
-.community-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(250px,1fr)); gap: 14px; }
+.community-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(300px,1fr)); gap: 18px; }
+
+/* The poster is the card: art fills it, a veil carries the text, and everything
+   else sits on top. Without art the initials stand in on a hue derived from the
+   title, so the grid never shows a hole where a picture will be. */
 .community-card {
-  border: 1px solid var(--line); border-radius: 16px; background: var(--glass); color: var(--text);
-  padding: 17px; text-align: start; cursor: pointer; transition: transform .15s,border-color .15s,box-shadow .15s;
+  position: relative; display: block; width: 100%; padding: 0; overflow: hidden;
+  aspect-ratio: 16 / 10; text-align: start; cursor: pointer; color: #fff;
+  border: 1px solid var(--line); border-radius: 16px;
+  background:
+    radial-gradient(120% 120% at 20% 0%, hsl(var(--card-hue) 45% 30%) 0%, transparent 70%),
+    linear-gradient(160deg, hsl(var(--card-hue) 40% 22%), hsl(calc(var(--card-hue) + 40deg) 35% 12%));
+  box-shadow: 0 10px 28px rgba(0,0,0,.28);
 }
-.community-card:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 12px 30px rgba(0,0,0,.10); }
-.community-card h4 { margin: 14px 0; font-size: 16px; }
-.community-card-top, .community-card-foot, .community-counts { display: flex; align-items: center; gap: 9px; }
-.community-card-top { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
-.community-kind { margin-inline-start: auto; border: 1px solid var(--line); border-radius: 999px; padding: 2px 7px; }
-.community-card-foot { justify-content: space-between; border-top: 1px solid var(--line); margin-top: 15px; padding-top: 12px; color: var(--muted); font-size: 12px; }
-.community-counts { gap: 16px; font-size: 15px; font-weight: 620; font-variant-numeric: tabular-nums; }
-.green { color: #69bd0c; } .yellow { color: #d99e00; } .red { color: #e54d58; }
+.community-art {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  transition: transform .4s cubic-bezier(.22,.9,.3,1);
+}
+.community-card:hover .community-art { transform: scale(1.045); }
+.community-initials {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: 58px; font-weight: 800; letter-spacing: .04em; color: rgba(255,255,255,.22);
+}
+/* Dark at the bottom where the words are, clear at the top where the art is. */
+.community-veil {
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(to top, rgba(6,10,16,.94) 0%, rgba(6,10,16,.78) 34%, rgba(6,10,16,.24) 62%, rgba(6,10,16,.34) 100%);
+}
+
+.community-pill, .community-kind {
+  position: absolute; z-index: 1; top: 12px; display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 11px; border-radius: 999px; font-size: 11px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; backdrop-filter: blur(8px);
+  background: rgba(10,16,24,.62); border: 1px solid rgba(255,255,255,.14); color: #fff;
+}
+.community-pill { inset-inline-start: 12px; }
+.community-kind { inset-inline-end: 12px; color: rgba(255,255,255,.75); }
+
+.community-card-body {
+  position: absolute; z-index: 1; inset-inline: 0; bottom: 0; display: grid; gap: 9px; padding: 16px 18px 16px;
+}
+.community-title {
+  font-size: 19px; font-weight: 700; line-height: 1.25; color: #fff;
+  text-shadow: 0 2px 12px rgba(0,0,0,.55);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* Numbers people read at a glance, so they are spaced and tabular: a count
+   going from 9 to 10 must not shift the two beside it. */
+.community-counts { display: flex; align-items: center; gap: 18px; font-size: 16px; font-weight: 700;
+  font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.5); }
+.community-counts span { display: inline-flex; align-items: center; gap: 7px; line-height: 1; }
+.community-counts .community-dot { width: 10px; height: 10px; }
+
+.community-card-foot {
+  display: flex; align-items: center; gap: 18px; color: rgba(255,255,255,.72); font-size: 12.5px;
+}
+.community-card-foot span { display: inline-flex; align-items: center; gap: 7px; }
+.community-card-foot svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+/* The affordance, bottom corner, the way the mock-up has it. */
+.community-go {
+  position: absolute; z-index: 2; inset-inline-end: 16px; bottom: 16px; width: 38px; height: 38px;
+  display: grid; place-items: center; border-radius: 50%;
+  background: rgba(12,18,26,.66); border: 1px solid rgba(255,255,255,.18); color: #fff;
+  backdrop-filter: blur(8px);
+  transition: transform .18s cubic-bezier(.3,1.2,.4,1), background .18s ease, border-color .18s ease;
+}
+.community-go svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.community-card:hover .community-go { background: var(--accent); border-color: var(--accent); color: #08120a; transform: translateX(3px); }
+[dir="rtl"] .community-go svg { transform: scaleX(-1); }
+[dir="rtl"] .community-card:hover .community-go { transform: translateX(-3px); }
+
 .community-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; background: #82909c; flex: none; }
 .community-dot.working, .community-dot.green { background: #69bd0c; box-shadow: 0 0 9px rgba(105,189,12,.55); }
 .community-dot.mixed, .community-dot.yellow { background: #d99e00; box-shadow: 0 0 9px rgba(217,158,0,.45); }
@@ -183,27 +242,111 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round
   border: 1px solid var(--line); border-radius: 18px; padding: 22px; background: var(--panel); color: var(--text); box-shadow: 0 30px 90px rgba(0,0,0,.35);
 }
 .community-dialog::backdrop { background: rgba(6,13,20,.68); backdrop-filter: blur(6px); }
-.community-dialog-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;
-  padding-bottom: 14px; border-bottom: 1px solid var(--line);
-  /* Sticky, because the comment list under it is long enough to scroll for a
-     page and the close button must not scroll away with the title. */
-  position: sticky; top: -22px; z-index: 2; background: var(--panel); margin: -22px -22px 0; padding: 22px 22px 14px; }
-.community-dialog-head h3 { margin: 0 0 5px; } .community-dialog-head p { margin: 0; color: var(--muted); font-size: 12px; }
-.community-route-counts { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; margin: 16px 0; }
-.community-route-count { display: grid; grid-template-columns: 1fr repeat(3,auto); gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 11px; padding: 13px 14px; font-size: 15px; font-weight: 620; font-variant-numeric: tabular-nums; }
-.community-comments { display: grid; gap: 10px; }
-.community-comment-card { border: 1px solid var(--line); border-radius: 13px; padding: 13px; background: var(--glass); }
-.community-comment-card header { display: flex; align-items: center; gap: 10px; }
-.community-comment-card header div { display: grid; gap: 2px; flex: 1; }
-.community-comment-card small, .community-comment-card header span { color: var(--muted); font-weight: normal; font-size: 12.5px; }
-.community-comment-card p { margin: 12px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-.community-avatar { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); font-size: 18px; }
-.community-tags, .community-reactions { display: flex; gap: 7px; flex-wrap: wrap; }
-.community-tags span { border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; color: var(--text); font-size: 12.5px; background: var(--glass); }
-.community-reactions { margin-top: 10px; }
-.community-reactions button { border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--text); padding: 4px 8px; cursor: pointer; }
-.community-reactions button:hover { border-color: var(--accent); }
-.community-report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+/* The opened card: wide art behind the header, the tall poster beside the
+   title the way a store page shows it. */
+.community-dialog { padding: 0; }
+.community-card-head {
+  position: relative; overflow: hidden; padding: 22px 22px 20px;
+  border-radius: 18px 18px 0 0; isolation: isolate;
+  background: linear-gradient(150deg, hsl(var(--card-hue) 42% 22%), hsl(calc(var(--card-hue) + 40deg) 34% 12%));
+}
+.community-head-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
+.community-head-veil {
+  position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(to top, rgba(8,13,20,.97) 4%, rgba(8,13,20,.72) 46%, rgba(8,13,20,.42) 100%);
+}
+.community-card-head { display: grid; grid-template-columns: auto 1fr; gap: 22px; align-items: end; }
+.community-poster {
+  width: 132px; aspect-ratio: 2/3; border-radius: 14px; overflow: hidden; display: grid; place-items: center;
+  border: 1px solid rgba(255,255,255,.16); box-shadow: 0 14px 34px rgba(0,0,0,.5); background: rgba(10,16,24,.6);
+}
+.community-poster img { width: 100%; height: 100%; object-fit: cover; }
+.community-poster .community-initials { position: static; font-size: 34px; }
+.community-head-copy { display: grid; gap: 8px; min-width: 0; padding-bottom: 4px; }
+.community-head-copy h3 { margin: 0; font-size: 30px; font-weight: 750; color: #fff; text-shadow: 0 3px 18px rgba(0,0,0,.6); }
+.community-head-copy p { margin: 0; color: rgba(255,255,255,.66); font-size: 13px; }
+
+.community-close {
+  position: absolute; top: 16px; inset-inline-end: 16px; z-index: 3;
+  width: 40px; height: 40px; display: grid; place-items: center; cursor: pointer;
+  border-radius: 12px; border: 1px solid rgba(255,255,255,.18); color: #fff; font-size: 15px;
+  background: rgba(12,18,26,.6); backdrop-filter: blur(10px);
+  transition: background .16s ease, transform .16s cubic-bezier(.3,1.3,.4,1);
+}
+.community-close:hover { background: rgba(226,90,90,.85); transform: scale(1.06); }
+
+/* One chip per route: a coloured mark, the name, its three counts. */
+.community-route-counts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.community-route-count {
+  display: inline-flex; align-items: center; gap: 12px; padding: 10px 12px;
+  border-radius: 14px; border: 1px solid rgba(255,255,255,.14); background: rgba(12,18,26,.55);
+  backdrop-filter: blur(10px); transition: border-color .18s ease, transform .18s cubic-bezier(.3,1.2,.4,1);
+}
+.community-route-count:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.3); }
+.community-route-tile {
+  width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; flex: none; color: #fff;
+}
+.community-route-tile svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.community-route-count.feeder .community-route-tile { background: linear-gradient(140deg,#1f7a3f,#0f4a26); }
+.community-route-count.renodx .community-route-tile { background: linear-gradient(140deg,#6c3fd0,#3b1f78); }
+.community-route-count.optiscaler .community-route-tile { background: linear-gradient(140deg,#1f6fd0,#123f7a); }
+.community-route-copy { display: grid; gap: 5px; }
+.community-route-copy b { color: #fff; font-size: 14px; }
+.community-route-go { width: 16px; height: 16px; fill: none; stroke: rgba(255,255,255,.5); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+[dir="rtl"] .community-route-go { transform: scaleX(-1); }
+
+/* A comment. The sheen sweeps across it under the pointer. */
+.community-comments { display: grid; gap: 12px; padding: 18px 22px 22px; }
+.community-comment-card {
+  position: relative; overflow: hidden; display: grid; grid-template-columns: auto 1fr; gap: 16px;
+  border: 1px solid var(--line); border-radius: 16px; padding: 16px; background: var(--glass);
+  transition: transform .2s cubic-bezier(.22,.9,.3,1), border-color .2s ease, box-shadow .2s ease;
+}
+.community-comment-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.18); box-shadow: 0 14px 34px rgba(0,0,0,.28); }
+.community-sheen {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,.13) 50%, transparent 62%);
+  background-size: 220% 100%; background-position: 130% 0;
+  transition: opacity .2s ease;
+}
+.community-comment-card:hover .community-sheen { opacity: 1; animation: community-sweep .85s cubic-bezier(.3,.7,.4,1) }
+@keyframes community-sweep { from { background-position: 130% 0 } to { background-position: -60% 0 } }
+
+.community-avatar-tile {
+  width: 58px; height: 58px; border-radius: 15px; display: grid; place-items: center; flex: none;
+  border: 1px solid var(--line); background: linear-gradient(150deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+  font-size: 27px;
+}
+.community-comment-main { display: grid; gap: 10px; min-width: 0; }
+.community-comment-card header { display: flex; align-items: center; gap: 8px; }
+.community-comment-card header b { color: var(--text); font-size: 15px; }
+.community-comment-card header small { color: var(--muted); font-size: 12.5px; font-weight: 500; }
+.community-when { margin-inline-start: auto; color: var(--muted); font-size: 12.5px; }
+.community-comment-card header .community-dot { flex: none; }
+.community-comment-card p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14.5px; line-height: 1.5; }
+.community-empty { color: var(--muted); margin: 0; }
+
+/* The hardware behind a verdict is half of what makes it worth reading. */
+.community-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.community-tags span {
+  border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px;
+  background: rgba(255,255,255,.04); color: var(--text); font-size: 12.5px; white-space: nowrap;
+}
+
+.community-reactions { display: flex; flex-wrap: wrap; gap: 9px; }
+.community-reactions button {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 999px; padding: 7px 13px;
+  background: rgba(255,255,255,.04); color: var(--text); font-size: 14px; line-height: 1;
+}
+.community-reactions button span { font-size: 13px; font-weight: 650; color: var(--muted); font-variant-numeric: tabular-nums; }
+.community-reactions button.on span { color: var(--text); }
+
+@media (prefers-reduced-motion: reduce) {
+  .community-comment-card, .community-route-count, .community-close { transition: none }
+  .community-comment-card:hover .community-sheen { animation: none; opacity: 0 }
+}
+
 .community-verdicts { border: 0; padding: 0; margin: 17px 0; display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; }
 .community-verdicts legend { grid-column: 1/-1; margin-bottom: 7px; color: var(--muted); font-size: 12px; }
 .community-verdicts button { border: 1px solid var(--line); border-radius: 11px; padding: 11px; background: var(--glass); color: var(--text); cursor: pointer; }

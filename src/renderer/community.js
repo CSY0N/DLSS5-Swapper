@@ -29,12 +29,53 @@
   // cached and shared; the server stays the authority on the counts, and a
   // stale entry here only costs one request it ignores.
   const readMine = () => { try { return JSON.parse(localStorage.getItem(MINE_KEY)) || {}; } catch { return {}; } };
-  const state = { cards: [], filters: { q: '', route: 'all', api: 'all', status: 'all' }, active: null, etag: null, timer: null, report: null, verdict: null, mine: readMine() };
+  const state = { art: {}, cards: [], filters: { q: '', route: 'all', api: 'all', status: 'all' }, active: null, etag: null, timer: null, report: null, verdict: null, mine: readMine() };
   const saveMine = () => { try { localStorage.setItem(MINE_KEY, JSON.stringify(state.mine)); } catch { /* private window, or storage off */ } };
   const text = () => L[(window.i18n?.getLang?.() || 'en').startsWith('ar') ? 'ar' : 'en'];
   const totals = verdicts => Object.values(verdicts || {}).reduce((sum, row) => ({ green: sum.green + (row.green || 0), yellow: sum.yellow + (row.yellow || 0), red: sum.red + (row.red || 0) }), { green: 0, yellow: 0, red: 0 });
   const statusClass = status => ['working', 'mixed', 'broken'].includes(status) ? status : 'unknown';
   const statusText = status => status === 'working' ? text().working : status === 'broken' ? text().broken : status === 'mixed' ? text().mixed : text().unknown;
+  // A stable colour per game, so a card without a poster is still recognisably
+  // that game rather than one more grey rectangle.
+  const hueOf = title => { let h = 0; for (const c of String(title)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
+  const initialsOf = title => String(title || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+
+  // Posters are fetched one at a time after the grid is already on screen: the
+  // page must never wait on a picture, and Steam's store is rate limited.
+  async function fetchArt(cards) {
+    for (const card of cards) {
+      if (state.art[card.key] !== undefined) continue;
+      state.art[card.key] = null;
+      let answer = null;
+      try { answer = await window.lab.communityArt(card.key, card.title); } catch { /* offline */ }
+      state.art[card.key] = answer && answer.cover ? answer : null;
+      if (answer && answer.cover && state.cards.some(item => item.key === card.key)) paintCards();
+    }
+  }
+
+  // One shape per route, so the eye tells them apart before it reads them.
+  const ROUTE_MARK = {
+    feeder: '<svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 1 8 8"/><path d="m8 16-4 4 4 4" transform="translate(0 -8)"/></svg>',
+    renodx: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>',
+    optiscaler: '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 15V9h3a3 3 0 0 1 0 6z"/></svg>'
+  };
+
+  // "3 days ago" rather than a timestamp: on a page of opinions, how old one is
+  // matters more than when exactly it was written.
+  function ago(at) {
+    const when = Number(at);
+    if (!Number.isFinite(when) || when <= 0) return '';
+    const seconds = Math.round((when - Date.now()) / 1000);
+    const steps = [[60, 'second'], [60, 'minute'], [24, 'hour'], [7, 'day'], [4.35, 'week'], [12, 'month'], [Infinity, 'year']];
+    let value = seconds, unit = 'second';
+    for (const [size, name] of steps) {
+      if (Math.abs(value) < size) { unit = name; break; }
+      value /= size; unit = name;
+    }
+    try { return new Intl.RelativeTimeFormat(document.documentElement.lang || 'en', { numeric: 'auto' }).format(Math.round(value), unit); }
+    catch { return ''; }
+  }
+
   const avatar = index => `<span class="community-avatar" aria-hidden="true">${avatars[Number(index) || 0] || avatars[0]}</span>`;
 
   function applyLanguage() {
@@ -51,13 +92,35 @@
 
   function cardMarkup(card) {
     const count = totals(card.verdicts);
-    return `<button class="community-card" data-community-card="${esc(card.key)}" type="button">
-      <div class="community-card-top"><span class="community-dot ${statusClass(card.status)}"></span><span class="community-status">${esc(statusText(card.status))}</span><span class="community-kind">${esc(card.kind)}</span></div>
-      <h4>${esc(card.title)}</h4>
-      <div class="community-counts"><span class="green">● ${count.green}</span><span class="yellow">● ${count.yellow}</span><span class="red">● ${count.red}</span></div>
-      <div class="community-card-foot"><span>${esc(text().reports(card.reports || 0))}</span><span>💬 ${esc(text().comments(card.comments || 0))}</span></div>
+    // The poster is the card. Until one arrives - or when a game has none - the
+    // initials stand in on a colour derived from the title, so the grid never
+    // shows a hole where a picture will be.
+    const art = state.art[card.key];
+    const cover = art && art.cover;
+    return `<button class="community-card${cover ? ' has-art' : ''}" data-community-card="${esc(card.key)}" type="button"
+      style="--card-hue:${hueOf(card.title)}deg">
+      ${cover ? `<img class="community-art" src="${esc(cover)}" alt="" loading="lazy">`
+              : `<span class="community-initials" aria-hidden="true">${esc(initialsOf(card.title))}</span>`}
+      <span class="community-veil"></span>
+      <span class="community-pill ${statusClass(card.status)}"><i class="community-dot ${statusClass(card.status)}"></i>${esc(statusText(card.status))}</span>
+      <span class="community-kind">${esc(card.kind)}</span>
+      <span class="community-card-body">
+        <span class="community-title">${esc(card.title)}</span>
+        <span class="community-counts">
+          <span class="green"><i class="community-dot green"></i>${count.green}</span>
+          <span class="yellow"><i class="community-dot yellow"></i>${count.yellow}</span>
+          <span class="red"><i class="community-dot red"></i>${count.red}</span>
+        </span>
+        <span class="community-card-foot">
+          <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>${esc(text().reports(card.reports || 0))}</span>
+          <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3v-6.5A8 8 0 0 1 11 4h2a8 8 0 0 1 8 8z"/></svg>${esc(text().comments(card.comments || 0))}</span>
+        </span>
+      </span>
+      <span class="community-go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></span>
     </button>`;
   }
+
+  const paintCards = () => { $('communityCards').innerHTML = state.cards.map(cardMarkup).join(''); };
 
   async function render() {
     applyLanguage();
@@ -72,13 +135,25 @@
     }
     state.cards = response.cards || [];
     $('communityNotice').textContent = state.cards.length ? '' : text().empty;
-    $('communityCards').innerHTML = state.cards.map(cardMarkup).join('');
+    paintCards();
+    // After the grid is up, never before it: a page must not wait on a picture.
+    fetchArt(state.cards);
   }
 
   function routeCounts(verdicts) {
     return ['feeder', 'renodx', 'optiscaler'].filter(route => verdicts?.[route]).map(route => {
       const row = verdicts[route];
-      return `<div class="community-route-count"><b>${route === 'optiscaler' ? 'OptiScaler' : route === 'renodx' ? 'RenoDX' : 'Feeder'}</b><span class="green">● ${row.green || 0}</span><span class="yellow">● ${row.yellow || 0}</span><span class="red">● ${row.red || 0}</span></div>`;
+      const name = route === 'optiscaler' ? 'OptiScaler' : route === 'renodx' ? 'RenoDX' : 'Feeder';
+      return `<span class="community-route-count ${route}">
+        <span class="community-route-tile" aria-hidden="true">${ROUTE_MARK[route]}</span>
+        <span class="community-route-copy"><b>${name}</b>
+          <span class="community-counts">
+            <span class="green"><i class="community-dot green"></i>${row.green || 0}</span>
+            <span class="yellow"><i class="community-dot yellow"></i>${row.yellow || 0}</span>
+            <span class="red"><i class="community-dot red"></i>${row.red || 0}</span>
+          </span></span>
+        <svg class="community-route-go" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+      </span>`;
     }).join('');
   }
 
@@ -93,18 +168,41 @@
         aria-pressed="${on}">${emoji}<span>${comment.reactions?.[emoji] || ''}</span></button>`;
     }).join('');
     return `<article class="community-comment-card">
-      <header>${avatar(by.icon)}<div><b>${esc(by.name || text().unnamed)} <small>#${esc(by.tag || '----')}</small></b><span>${esc(comment.route || '')} · ${esc((comment.api || '').toUpperCase())}</span></div><i class="community-dot ${comment.verdict}"></i></header>
-      ${comment.comment ? `<p>${esc(comment.comment)}</p>` : ''}
-      <div class="community-tags">${(comment.tags || []).map(tag => `<span>${esc(tag)}</span>`).join('')}</div>
-      <div class="community-reactions">${reactions}</div>
+      <span class="community-sheen" aria-hidden="true"></span>
+      <span class="community-avatar-tile">${avatar(by.icon)}</span>
+      <div class="community-comment-main">
+        <header>
+          <b>${esc(by.name || text().unnamed)}</b><small>#${esc(by.tag || '----')}</small>
+          <span class="community-when">${esc(ago(comment.at))}</span>
+          <i class="community-dot ${comment.verdict}" title="${esc(comment.route || '')}"></i>
+        </header>
+        ${comment.comment ? `<p>${esc(comment.comment)}</p>` : ''}
+        <div class="community-tags">${(comment.tags || []).map(tag => `<span>${esc(tag)}</span>`).join('')}</div>
+        <div class="community-reactions">${reactions}</div>
+      </div>
     </article>`;
   }
 
   function paintCard(card) {
     state.active = card;
-    $('communityCardTitle').textContent = card.title;
-    $('communityCardMeta').textContent = text().updated;
-    $('communityCardBody').innerHTML = `<div class="community-route-counts">${routeCounts(card.verdicts)}</div><div class="community-comments">${card.comments?.length ? card.comments.map(commentMarkup).join('') : `<p class="community-empty">${esc(text().noComments)}</p>`}</div>`;
+    const art = state.art[card.key] || {};
+    const head = $('communityCardHead');
+    head.style.setProperty('--card-hue', `${hueOf(card.title)}deg`);
+    head.classList.toggle('has-art', Boolean(art.cover));
+    head.innerHTML = `
+      ${art.cover ? `<img class="community-head-art" src="${esc(art.cover)}" alt="">` : ''}
+      <span class="community-head-veil"></span>
+      <span class="community-poster">${art.poster
+        ? `<img src="${esc(art.poster)}" alt="">`
+        : `<span class="community-initials">${esc(initialsOf(card.title))}</span>`}</span>
+      <span class="community-head-copy">
+        <h3>${esc(card.title)}</h3>
+        <p>${esc(text().updated)}</p>
+        <span class="community-route-counts">${routeCounts(card.verdicts)}</span>
+      </span>`;
+    $('communityCardBody').innerHTML = `<div class="community-comments">${card.comments?.length
+      ? card.comments.map(commentMarkup).join('')
+      : `<p class="community-empty">${esc(text().noComments)}</p>`}</div>`;
   }
 
   async function openCard(key) {
@@ -194,7 +292,7 @@
       button.disabled = true;
       const response = await window.lab.communityReaction(button.dataset.report, button.dataset.reaction, on);
       button.disabled = false;
-      if (response?.ok) { if (on) state.mine[key] = true; else delete state.mine[key]; saveMine(); } if (!response?.ok) return void ($('communityCardMeta').textContent = response?.message || text().reactionFailed); const latest = await window.lab.communityCard(state.active.key, null); if (latest?.ok) paintCard(latest.card); };
+      if (response?.ok) { if (on) state.mine[key] = true; else delete state.mine[key]; saveMine(); } if (!response?.ok) return void ($('communityNotice').textContent = response?.message || text().reactionFailed); const latest = await window.lab.communityCard(state.active.key, null); if (latest?.ok) paintCard(latest.card); };
     $('communityReportClose').onclick = closeReport; $('communityReportCancel').onclick = closeReport; $('communityReportDialog').addEventListener('cancel', event => { event.preventDefault(); closeReport(); });
     $('communityReportRoute').onchange = updatePrivacy; $('communityReportApi').onchange = updatePrivacy;
     document.querySelector('.community-verdicts').onclick = event => { const button = event.target.closest('[data-verdict]'); if (!button) return; state.verdict = button.dataset.verdict; document.querySelectorAll('.community-verdicts button').forEach(item => item.classList.toggle('selected', item === button)); };
