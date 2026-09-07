@@ -1005,13 +1005,6 @@ ipcMain.handle('install', (event, dir, exePath, requestedRoute, requestedApi) =>
   // upstream has measured faulting inside NVIDIA's runtime on a known driver
   // range. Say so before the work starts; it never stops the install.
   if (route === 'native' || route === 'feeder') {
-    // A game's own ancient shader compiler silently turns the neural pass into
-    // nothing, while every other sign says the install worked. Said before the
-    // work starts; it never stops an install.
-    try {
-      const stale = compatibility.oldShaderCompiler(path.dirname(target.path));
-      if (stale) send({ code: 'oldShaderCompiler', params: { rel: path.relative(dir, stale.file), version: stale.version } });
-    } catch {}
     // Advice only: nothing about reading the driver may decide whether an
     // install runs.
     try {
