@@ -36,8 +36,17 @@ const featureText = (key, ...args) => featureI18n.t(loadState().lang, key, ...ar
 const vulkanLayer = require('./src/core/vulkan-layer');
 const { HistoryStore, knownFolders, fromManifests } = require('./src/core/history');
 const gameMenu = require('./src/core/game-menu');
+const { CommunityClient } = require('./src/community-client');
 let historyStore;
 const history = () => historyStore || (historyStore = new HistoryStore(path.join(app.getPath('userData'), 'history.jsonl')));
+let communityClient;
+const community = () => communityClient || (communityClient = new CommunityClient({
+  file: path.join(app.getPath('userData'), 'community.json')
+}));
+const communityAnswer = async work => {
+  try { return { ok: true, ...(await work()) }; }
+  catch (error) { return { ok: false, error: error.code || 'community_failed', message: error.message, status: error.status || null }; }
+};
 const gameName = dir => lastGames.find(game => keyFor(game.dir) === keyFor(dir))?.name || path.basename(dir);
 function saveOperation(dir, manifest, action, send) {
   try { history().record(dir, manifest, action, gameName(dir)); }
@@ -491,6 +500,59 @@ ipcMain.handle('settings', () => {
     autoScanDrives: state.autoScanDrives === true,
     groupGamesByStore: state.groupGamesByStore !== false
   };
+});
+
+// ---------- community compatibility ----------
+// Network access stays in the main process. The renderer receives only parsed
+// data and cannot choose an arbitrary host or attach the private install id to
+// another request.
+ipcMain.handle('community-profile', () => community().profile());
+ipcMain.handle('community-profile-save', (_event, profile) => communityAnswer(async () => ({
+  profile: await community().saveProfile(profile && typeof profile === 'object' ? profile : {})
+})));
+ipcMain.handle('community-cards', (_event, filters) => communityAnswer(async () => ({
+  cards: await community().cards(filters && typeof filters === 'object' ? filters : {})
+})));
+ipcMain.handle('community-card', (_event, key, etag) => communityAnswer(async () => {
+  if (typeof key !== 'string' || key.length > 300) throw Object.assign(new Error('Invalid game card.'), { code: 'bad_card' });
+  const result = await community().card(key, typeof etag === 'string' ? etag : null);
+  return result.notModified ? result : { card: result.data, etag: result.etag };
+}));
+ipcMain.handle('community-updates', (_event, key, since, etag) => communityAnswer(async () => {
+  if (typeof key !== 'string' || key.length > 300) throw Object.assign(new Error('Invalid game card.'), { code: 'bad_card' });
+  const result = await community().updates(key, since, typeof etag === 'string' ? etag : null);
+  return result.notModified ? result : { updates: result.data, etag: result.etag };
+}));
+ipcMain.handle('community-report', (_event, report) => communityAnswer(async () => ({
+  result: await community().report(report && typeof report === 'object' ? report : {})
+})));
+ipcMain.handle('community-withdraw', (_event, id) => communityAnswer(async () => ({
+  result: await community().withdraw(id)
+})));
+ipcMain.handle('community-reaction', (_event, id, emoji, on) => communityAnswer(async () => ({
+  result: await community().react(id, emoji, on)
+})));
+ipcMain.handle('community-prefill', async (_event, dir) => {
+  if (typeof dir !== 'string' || !path.isAbsolute(dir)) return { ok: false, error: 'bad_game' };
+  const game = lastGames.find(row => keyFor(row.dir) === keyFor(dir));
+  if (!game) return { ok: false, error: 'bad_game' };
+  return communityAnswer(async () => {
+    const scan = await scanGame(dir);
+    const gpus = await guards.gpuInfo().catch(() => null);
+    const gpu = Array.isArray(gpus) && gpus[0] ? gpus[0] : {};
+    const route = scan.install?.route === 'native' ? 'renodx' : (scan.install?.route || null);
+    const store = ({ Steam: 'steam', 'Epic Games': 'epic', GOG: 'gog', Xbox: 'xbox', Ubisoft: 'ubisoft' })[game.launcher] || null;
+    return { prefill: {
+      title: game.name, poster: game.poster?.url || game.poster || null,
+      game: { store, storeId: store && game.id ? String(game.id) : null, title: game.name,
+        exe: scan.chosen?.rel ? path.basename(scan.chosen.rel) : null },
+      route: ['feeder', 'renodx', 'optiscaler'].includes(route) ? route : null,
+      api: scan.chosen?.api || null,
+      gpu: gpu.name || null, driver: gpu.driver || null,
+      cpu: os.cpus()?.[0]?.model || null,
+      os: `${process.platform} ${os.release()}`, app: app.getVersion()
+    } };
+  });
 });
 
 ipcMain.handle('set-group-games-by-store', (_event, enabled) => {

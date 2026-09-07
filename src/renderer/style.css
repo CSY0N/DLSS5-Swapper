@@ -143,6 +143,81 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round
 }
 .nav-item.active .dot { background: var(--accent); box-shadow: 0 0 8px rgba(108, 193, 10, .6); }
 
+/* ---------------- community ---------------- */
+.community-heading { align-items: flex-start; }
+.community-heading h3 { margin-bottom: 4px; }
+.community-filters {
+  display: grid; grid-template-columns: minmax(230px, 1.8fr) repeat(3, minmax(130px, 1fr)) auto;
+  gap: 10px; align-items: end; margin: 14px 0 18px;
+}
+.community-filters label, .community-report-grid label, .community-comment { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+.community-filters input, .community-filters select, .community-report-grid select, .community-comment textarea, .community-profile input {
+  min-height: 40px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 11px;
+  background: var(--glass); color: var(--text); font: inherit; outline: none;
+}
+.community-filters input:focus, .community-filters select:focus, .community-report-grid select:focus, .community-comment textarea:focus, .community-profile input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(108,193,10,.12); }
+.community-notice { min-height: 20px; color: var(--muted); margin: 0 0 10px; }
+.community-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(250px,1fr)); gap: 14px; }
+.community-card {
+  border: 1px solid var(--line); border-radius: 16px; background: var(--glass); color: var(--text);
+  padding: 17px; text-align: start; cursor: pointer; transition: transform .15s,border-color .15s,box-shadow .15s;
+}
+.community-card:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 12px 30px rgba(0,0,0,.10); }
+.community-card h4 { margin: 14px 0; font-size: 16px; }
+.community-card-top, .community-card-foot, .community-counts { display: flex; align-items: center; gap: 9px; }
+.community-card-top { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.community-kind { margin-inline-start: auto; border: 1px solid var(--line); border-radius: 999px; padding: 2px 7px; }
+.community-card-foot { justify-content: space-between; border-top: 1px solid var(--line); margin-top: 15px; padding-top: 12px; color: var(--muted); font-size: 12px; }
+.community-counts { gap: 14px; font-size: 12px; }
+.green { color: #69bd0c; } .yellow { color: #d99e00; } .red { color: #e54d58; }
+.community-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: #82909c; flex: none; }
+.community-dot.working, .community-dot.green { background: #69bd0c; box-shadow: 0 0 9px rgba(105,189,12,.55); }
+.community-dot.mixed, .community-dot.yellow { background: #d99e00; box-shadow: 0 0 9px rgba(217,158,0,.45); }
+.community-dot.broken, .community-dot.red { background: #e54d58; box-shadow: 0 0 9px rgba(229,77,88,.45); }
+.community-dialog {
+  width: min(760px, calc(100vw - 42px)); max-height: calc(100vh - 54px); overflow: auto;
+  border: 1px solid var(--line); border-radius: 18px; padding: 22px; background: var(--panel); color: var(--text); box-shadow: 0 30px 90px rgba(0,0,0,.35);
+}
+.community-dialog::backdrop { background: rgba(6,13,20,.68); backdrop-filter: blur(6px); }
+.community-dialog-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.community-dialog-head h3 { margin: 0 0 5px; } .community-dialog-head p { margin: 0; color: var(--muted); font-size: 12px; }
+.community-route-counts { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; margin: 16px 0; }
+.community-route-count { display: grid; grid-template-columns: 1fr repeat(3,auto); gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 11px; padding: 11px; font-size: 12px; }
+.community-comments { display: grid; gap: 10px; }
+.community-comment-card { border: 1px solid var(--line); border-radius: 13px; padding: 13px; background: var(--glass); }
+.community-comment-card header { display: flex; align-items: center; gap: 10px; }
+.community-comment-card header div { display: grid; gap: 2px; flex: 1; }
+.community-comment-card small, .community-comment-card header span { color: var(--muted); font-weight: normal; font-size: 11px; }
+.community-comment-card p { margin: 12px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.community-avatar { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); font-size: 18px; }
+.community-tags, .community-reactions { display: flex; gap: 6px; flex-wrap: wrap; }
+.community-tags span { border: 1px solid var(--line); border-radius: 999px; padding: 3px 7px; color: var(--muted); font-size: 10px; }
+.community-reactions { margin-top: 10px; }
+.community-reactions button { border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--text); padding: 4px 8px; cursor: pointer; }
+.community-reactions button:hover { border-color: var(--accent); }
+.community-report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+.community-verdicts { border: 0; padding: 0; margin: 17px 0; display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; }
+.community-verdicts legend { grid-column: 1/-1; margin-bottom: 7px; color: var(--muted); font-size: 12px; }
+.community-verdicts button { border: 1px solid var(--line); border-radius: 11px; padding: 11px; background: var(--glass); color: var(--text); cursor: pointer; }
+.community-verdicts button[data-verdict="green"] { color: #69bd0c; } .community-verdicts button[data-verdict="yellow"] { color: #d99e00; } .community-verdicts button[data-verdict="red"] { color: #e54d58; }
+.community-verdicts button.selected { border-color: currentColor; box-shadow: inset 0 0 0 1px currentColor; }
+.community-comment textarea { resize: vertical; min-height: 88px; }
+.community-privacy { margin-top: 16px; border: 1px solid rgba(108,193,10,.35); border-radius: 13px; padding: 14px; background: rgba(108,193,10,.06); }
+.community-privacy > b { display: block; margin-bottom: 9px; }
+#communityPrivacyData { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
+#communityPrivacyData div { display: flex; justify-content: space-between; gap: 10px; font-size: 11px; border-bottom: 1px solid var(--line); padding: 4px 0; }
+#communityPrivacyData span { color: var(--muted); } .community-privacy p { color: var(--muted); font-size: 11px; margin: 10px 0 0; }
+.community-error, .community-profile-status { color: #d74b55; min-height: 18px; }
+.community-submit-row { display: flex; justify-content: flex-end; gap: 9px; margin-top: 12px; }
+.community-profile { display: grid; grid-template-columns: minmax(220px,1fr) minmax(300px,1.2fr); gap: 24px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+.community-profile-copy label { display: grid; gap: 6px; margin-top: 13px; color: var(--muted); font-size: 12px; }
+.community-profile-picker > span { color: var(--muted); font-size: 12px; }
+.community-profile-picker > div { display: grid; grid-template-columns: repeat(8,36px); gap: 6px; margin: 8px 0 12px; }
+.community-profile-picker [data-community-icon] { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 9px; background: var(--glass); cursor: pointer; }
+.community-profile-picker [data-community-icon].selected { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+@media (max-width: 980px) { .community-filters { grid-template-columns: 1fr 1fr; } .community-route-counts { grid-template-columns: 1fr; } }
+@media (max-width: 680px) { .community-report-grid, .community-profile, #communityPrivacyData { grid-template-columns: 1fr; } .community-verdicts { grid-template-columns: 1fr; } }
+
 .status-card {
   margin-top: auto;
   padding: 16px;
@@ -1037,3 +1112,64 @@ body { cursor: default; }
 .support-button { display: inline-flex; border-radius: 10px; }
 .support-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .support-qr { border-radius: 10px; background: #fff; padding: 6px; }
+
+/* ---------------- community: identity and motion ---------------- */
+/* The icons are drawn, not shipped: they inherit the theme and cost no load. */
+.community-profile { align-items: flex-start; }
+.avatar-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr));
+  gap: 8px; margin: 14px 0 4px; max-width: 420px;
+}
+.avatar {
+  display: grid; place-items: center; aspect-ratio: 1; padding: 0;
+  background: var(--panel-2, rgba(127,127,127,.06));
+  border: 1px solid var(--line); border-radius: 12px; color: var(--muted);
+  cursor: pointer; transition: transform .16s ease, border-color .16s ease, color .16s ease, background .16s ease;
+}
+.avatar svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.avatar:hover { transform: translateY(-2px); color: var(--text); border-color: var(--accent); }
+.avatar.on {
+  color: var(--accent); border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.avatar.on svg { stroke-width: 2 }
+.profile-name { display: grid; gap: 6px; max-width: 420px; margin-top: 12px; font-size: 12px; color: var(--muted) }
+.profile-status { min-height: 18px; margin: 8px 0 0; font-size: 12px; color: var(--muted) }
+.profile-status.bad { color: #e05a5a }
+
+/* Cards arrive rather than appear, each a little after the one before it, so a
+   refreshed page reads as one movement instead of a flash. */
+@keyframes community-rise { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+.community-grid > * { animation: community-rise .34s cubic-bezier(.22,.9,.3,1) both }
+.community-grid > *:nth-child(1) { animation-delay: .01s } .community-grid > *:nth-child(2) { animation-delay: .04s }
+.community-grid > *:nth-child(3) { animation-delay: .07s } .community-grid > *:nth-child(4) { animation-delay: .10s }
+.community-grid > *:nth-child(5) { animation-delay: .13s } .community-grid > *:nth-child(6) { animation-delay: .16s }
+.community-grid > *:nth-child(7) { animation-delay: .19s } .community-grid > *:nth-child(8) { animation-delay: .22s }
+.community-grid > *:nth-child(n+9) { animation-delay: .25s }
+
+.community-card { transition: transform .18s cubic-bezier(.22,.9,.3,1), border-color .18s ease, box-shadow .18s ease }
+.community-card:active { transform: translateY(0) scale(.995) }
+
+/* A live count that just changed is worth one beat of attention, not a flash. */
+@keyframes community-bump { 50% { transform: scale(1.18) } }
+.community-counts .changed { animation: community-bump .42s cubic-bezier(.3,1.4,.4,1); display: inline-block }
+
+/* Green means people got it working, so it breathes; the others sit still. */
+@keyframes community-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(105,189,12,.5) } 50% { box-shadow: 0 0 0 5px rgba(105,189,12,0) } }
+.community-dot.working { animation: community-pulse 2.6s ease-out infinite }
+
+/* Waiting for the first answer should look like the thing that is coming. */
+@keyframes community-shimmer { to { background-position: 200% 0 } }
+.community-skeleton {
+  height: 148px; border-radius: 14px; border: 1px solid var(--line);
+  background: linear-gradient(100deg, transparent 20%, color-mix(in srgb, var(--text) 7%, transparent) 40%, transparent 60%)
+              var(--panel, transparent);
+  background-size: 200% 100%; animation: community-shimmer 1.25s linear infinite;
+}
+
+/* Nobody asked for motion sickness. */
+@media (prefers-reduced-motion: reduce) {
+  .community-grid > *, .community-counts .changed, .community-dot.working, .community-skeleton { animation: none }
+  .community-card, .avatar { transition: none }
+}
