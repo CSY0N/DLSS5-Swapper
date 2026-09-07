@@ -81,7 +81,8 @@
     },
     "compression": "maximum",
     "portable": {
-      "artifactName": "DLSS5-Swapper-${version}-portable.exe"
+      "artifactName": "DLSS5-Swapper-${version}-portable.exe",
+      "unpackDirName": "DLSS5-Swapper"
     },
     "nsis": {
       "oneClick": false,
