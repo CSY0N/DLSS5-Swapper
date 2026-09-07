@@ -7,7 +7,7 @@
       title: 'Community-tested games', subtitle: 'Real results from DLSS 5 Swapper users.', refresh: 'Refresh', search: 'Search games', route: 'Route', api: 'Rendering API', result: 'Result',
       allRoutes: 'All routes', allApis: 'All APIs', allResults: 'All results', working: 'Working', issues: 'Works with issues', broken: 'Not working', mixed: 'Mixed', clear: 'Clear filters', loading: 'Loading community results…', empty: 'No matching community reports yet.', offline: 'Community service is unavailable. Check your connection and try again.',
       reports: n => `${n} report${n === 1 ? '' : 's'}`, comments: n => `${n} comment${n === 1 ? '' : 's'}`, noComments: 'No comments yet.', updated: 'Live updates are on while this card is open.',
-      share: 'Share your result', routeUsed: 'Route used', choose: 'Choose…', unknown: 'Unknown', yourResult: 'Your result', optionalComment: 'Optional comment', sent: 'Data that will be sent', privacy: 'No folder path is sent. The server stores only a hash of a random app identifier.', cancel: 'Cancel', submit: 'Submit report', submitting: 'Submitting…', chooseRoute: 'Choose the route you actually used.', chooseVerdict: 'Choose your result.', sentOk: 'Your report was added to the community.',
+      share: 'Share your result', shareHint: 'Share your result and help the community.', why: 'Your report helps improve compatibility for everyone.', routeUsed: 'Route used', choose: 'Choose…', unknown: 'Unknown', yourResult: 'Your result', optionalComment: 'Optional comment', sent: 'Data that will be sent', privacy: 'No folder path is sent. The server stores only a hash of a random app identifier.', cancel: 'Cancel', submit: 'Submit report', submitting: 'Submitting…', chooseRoute: 'Choose the route you actually used.', chooseVerdict: 'Choose your result.', sentOk: 'Your report was added to the community.',
       profile: 'Community profile', profileHint: 'Your fixed avatar and display name appear beside your comments. A name can change once a week.', displayName: 'Display name', chooseIcon: 'Choose an avatar', save: 'Save profile', saved: 'Profile saved.', unnamed: 'Anonymous', addGame: 'Add to community-tested games', reactionFailed: 'Could not save that reaction.',
       reply: 'Reply', back: 'Back to all results', noReplies: 'No replies yet. Be the first.',
       replyingTo: 'Replying to',
@@ -19,7 +19,7 @@
       title: 'ألعاب اختبرها المجتمع', subtitle: 'نتائج حقيقية من مستخدمي DLSS 5 Swapper.', refresh: 'تحديث', search: 'بحث عن لعبة', route: 'طريقة التثبيت', api: 'واجهة الرسوم', result: 'النتيجة',
       allRoutes: 'كل الطرق', allApis: 'كل الواجهات', allResults: 'كل النتائج', working: 'تعمل', issues: 'تعمل مع مشاكل', broken: 'لا تعمل', mixed: 'نتائج مختلطة', clear: 'مسح الفلاتر', loading: 'جاري تحميل نتائج المجتمع…', empty: 'لا توجد تقارير مطابقة حتى الآن.', offline: 'خدمة المجتمع غير متاحة. تحقق من اتصالك وحاول مجددًا.',
       reports: n => `${n} تقرير`, comments: n => `${n} تعليق`, noComments: 'لا توجد تعليقات بعد.', updated: 'التحديث المباشر يعمل أثناء فتح هذه البطاقة.',
-      share: 'شارك نتيجتك', routeUsed: 'طريقة التثبيت المستخدمة', choose: 'اختر…', unknown: 'غير معروف', yourResult: 'نتيجتك', optionalComment: 'تعليق اختياري', sent: 'البيانات التي سيتم إرسالها', privacy: 'لن يُرسل مسار مجلد اللعبة. الخادم يحفظ فقط بصمة لمعرّف عشوائي خاص بالتطبيق.', cancel: 'إلغاء', submit: 'إرسال التقرير', submitting: 'جاري الإرسال…', chooseRoute: 'اختر طريقة التثبيت التي استخدمتها فعليًا.', chooseVerdict: 'اختر نتيجتك.', sentOk: 'تمت إضافة تقريرك إلى المجتمع.',
+      share: 'شارك نتيجتك', shareHint: 'شارك نتيجتك وساعد المجتمع.', why: 'بلاغك يحسّن التوافق للجميع.', routeUsed: 'طريقة التثبيت المستخدمة', choose: 'اختر…', unknown: 'غير معروف', yourResult: 'نتيجتك', optionalComment: 'تعليق اختياري', sent: 'البيانات التي سيتم إرسالها', privacy: 'لن يُرسل مسار مجلد اللعبة. الخادم يحفظ فقط بصمة لمعرّف عشوائي خاص بالتطبيق.', cancel: 'إلغاء', submit: 'إرسال التقرير', submitting: 'جاري الإرسال…', chooseRoute: 'اختر طريقة التثبيت التي استخدمتها فعليًا.', chooseVerdict: 'اختر نتيجتك.', sentOk: 'تمت إضافة تقريرك إلى المجتمع.',
       profile: 'ملف المجتمع', profileHint: 'تظهر صورتك الثابتة واسمك بجانب تعليقاتك. يمكن تغيير الاسم مرة كل أسبوع.', displayName: 'اسم العرض', chooseIcon: 'اختر صورة', save: 'حفظ الملف', saved: 'تم حفظ الملف.', unnamed: 'مجهول', addGame: 'إضافة إلى الألعاب المختبرة من المجتمع', reactionFailed: 'تعذر حفظ التفاعل.',
       reply: 'رد', back: 'الرجوع إلى كل النتائج', noReplies: 'لا ردود بعد. كن أول من يرد.',
       replyingTo: 'ردًّا على',
@@ -62,6 +62,30 @@
   }
 
   // One shape per route, so the eye tells them apart before it reads them.
+  // Every glyph in the report dialog, drawn rather than shipped so they take
+  // the theme with them and cost no load.
+  const ICON = {
+    route: '<path d="M12 2a5 5 0 0 1 5 5c0 3.5-5 13-5 13S7 10.5 7 7a5 5 0 0 1 5-5z"/><circle cx="12" cy="7" r="2"/>',
+    api: '<circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-2.9-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.1-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.2V4a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 2.9 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 11h.2a2 2 0 1 1 0 4z"/>',
+    result: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+    comment: '<path d="M21 12a8 8 0 0 1-8 8H7l-4 3v-6.5A8 8 0 0 1 11 4h2a8 8 0 0 1 8 8z"/>',
+    game: '<rect x="2" y="7" width="20" height="11" rx="4"/><path d="M7 11v3m-1.5-1.5h3M16 12h.01M18.5 14h.01"/>',
+    gpu: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 18v2M17 18v2M8 10h8v4H8z"/>',
+    cpu: '<rect x="7" y="7" width="10" height="10" rx="2"/><path d="M10 2v3M14 2v3M10 19v3M14 19v3M2 10h3M2 14h3M19 10h3M19 14h3"/>',
+    driver: '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
+    os: '<path d="M3 5.5 10.5 4.4v7.1H3zM12.5 4.1 21 3v8.5h-8.5zM3 12.5h7.5v7.1L3 18.5zM12.5 12.5H21V21l-8.5-1.1z"/>',
+    app: '<path d="m12 2 9 5v10l-9 5-9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/>',
+    player: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    tag: '<path d="M20.6 13.4 12 22l-9-9V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.4"/>',
+    sent: '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+    shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+    send: '<path d="m4 12 16-8-6 8 6 8z"/><path d="M4 12h10"/>',
+    check: '<path d="m5 13 4 4L19 7"/>'
+  };
+  const icon = (name, cls = '') =>
+    `<svg class="c-icon ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON[name] || ''}</svg>`;
+
   const ROUTE_MARK = {
     feeder: '<svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 1 8 8"/><path d="m8 16-4 4 4 4" transform="translate(0 -8)"/></svg>',
     renodx: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>',
@@ -88,7 +112,7 @@
 
   function applyLanguage() {
     const s = text();
-    const values = { communityTitle: s.title, communitySubtitle: s.subtitle, communityRefresh: s.refresh, communitySearchLabel: s.search, communityRouteLabel: s.route, communityApiLabel: s.api, communityStatusLabel: s.result, communityClear: s.clear, communityReportRouteLabel: s.routeUsed, communityReportApiLabel: s.api, communityVerdictLabel: s.yourResult, communityCommentLabel: s.optionalComment, communityPrivacyTitle: s.sent, communityPrivacyNote: s.privacy, communityReportCancel: s.cancel, communityReportSubmit: s.submit };
+    const values = { communityTitle: s.title, communitySubtitle: s.subtitle, communityRefresh: s.refresh, communitySearchLabel: s.search, communityRouteLabel: s.route, communityApiLabel: s.api, communityStatusLabel: s.result, communityClear: s.clear, communityReportRouteLabel: s.routeUsed, communityReportApiLabel: s.api, communityVerdictLabel: s.yourResult, communityCommentLabel: s.optionalComment, communityPrivacyTitle: s.sent, communityPrivacyNote: s.privacy, communityWhy: s.why, communityReportCancel: s.cancel, communityReportSubmit: s.submit };
     for (const [id, value] of Object.entries(values)) if ($(id)) $(id).textContent = value;
     const setOption = (id, value, label) => { const option = $(id)?.querySelector(`option[value="${value}"]`); if (option) option.textContent = label; };
     setOption('communityRoute', 'all', s.allRoutes); setOption('communityApi', 'all', s.allApis); setOption('communityStatus', 'all', s.allResults);
@@ -369,12 +393,33 @@
 
   function privacyRows(prefill) {
     const facts = { title: prefill.title, route: $('communityReportRoute').value || '—', api: $('communityReportApi').value || '—', gpu: prefill.gpu, driver: prefill.driver, cpu: prefill.cpu, os: prefill.os, app: prefill.app };
-    return Object.entries(facts).map(([key, value]) => `<div><span>${esc(text().facts[key])}</span><b>${esc(value || '—')}</b></div>`).join('');
+    const glyph = { title: 'game', route: 'route', api: 'api', gpu: 'gpu', driver: 'driver', cpu: 'cpu', os: 'os', app: 'app' };
+    return Object.entries(facts).map(([key, value]) =>
+      `<div>${icon(glyph[key] || 'info')}<span>${esc(text().facts[key])}</span><b>${esc(value || '—')}</b></div>`).join('');
   }
   function updatePrivacy() { if (state.report) $('communityPrivacyData').innerHTML = privacyRows(state.report); }
 
   // The same header the opened card has: the game's own art behind it and its
   // poster beside the title, so it is obvious which game is being reported on.
+  // "win32 10.0.26200" is what the platform calls itself; nobody says that.
+  const platformName = value => /^win/i.test(String(value || '')) ? 'Windows'
+    : /^darwin/i.test(String(value || '')) ? 'macOS' : /^linux/i.test(String(value || '')) ? 'Linux' : (value || '');
+
+  // Each label says which glyph belongs to it; this puts them there.
+  function paintLabelIcons() {
+    for (const label of document.querySelectorAll('#communityReportDialog [data-icon]')) {
+      if (label.querySelector('.c-icon')) continue;
+      label.insertAdjacentHTML('afterbegin', icon(label.dataset.icon));
+    }
+  }
+
+  function countComment() {
+    const box = $('communityReportComment'), out = $('communityCommentCount');
+    if (!box || !out) return;
+    out.textContent = `${box.value.length}/${box.maxLength}`;
+    out.classList.toggle('near', box.value.length > box.maxLength * 0.9);
+  }
+
   async function paintReportHead() {
     const report = state.report;
     if (!report) return;
@@ -390,7 +435,12 @@
           : `<span class="community-initials">${esc(initialsOf(report.title))}</span>`}</span>
         <span class="community-head-copy">
           <h3>${esc(report.title)}</h3>
-          <p>${esc(text().share)}</p>
+          <p>${esc(text().shareHint)}</p>
+          <span class="community-head-chips">
+            <span class="community-chip">${icon('os')}${esc(platformName(report.os))}</span>
+            ${report.api ? `<span class="community-chip">${icon('api')}${esc(report.api.toUpperCase())}</span>` : ''}
+            <span class="community-chip">${icon('tag')}v${esc(report.app || '')}</span>
+          </span>
         </span>`;
     };
     paint(report.hero || (key && state.art[key]?.cover) || null);
@@ -410,6 +460,8 @@
     if (!response?.ok) { $('communityNotice').textContent = response?.message || text().offline; return; }
     state.report = response.prefill; state.verdict = null; applyLanguage();
     paintReportHead();
+    paintLabelIcons();
+    countComment();
     $('communityReportRoute').value = state.report.route || '';
     $('communityReportApi').value = state.report.api || '';
     $('communityReportComment').value = '';
@@ -523,6 +575,7 @@
     };
     $('communityReportClose').onclick = closeReport; $('communityReportCancel').onclick = closeReport; $('communityReportDialog').addEventListener('cancel', event => { event.preventDefault(); closeReport(); });
     $('communityReportRoute').onchange = updatePrivacy; $('communityReportApi').onchange = updatePrivacy;
+    $('communityReportComment').oninput = countComment;
     document.querySelector('.community-verdicts').onclick = event => { const button = event.target.closest('[data-verdict]'); if (!button) return; state.verdict = button.dataset.verdict; document.querySelectorAll('.community-verdicts button').forEach(item => item.classList.toggle('selected', item === button)); };
     $('communityReportForm').onsubmit = submitReport;
   }

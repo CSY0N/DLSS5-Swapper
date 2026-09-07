@@ -254,14 +254,14 @@
     <button class="community-close" id="communityReportClose" aria-label="Close">✕</button>
     <form id="communityReportForm" class="community-report-body">
       <div class="community-report-grid">
-        <label><span id="communityReportRouteLabel">Route used</span><select id="communityReportRoute" required><option value="">Choose…</option><option value="feeder">Feeder</option><option value="renodx">RenoDX</option><option value="optiscaler">OptiScaler</option></select></label>
-        <label><span id="communityReportApiLabel">Rendering API</span><select id="communityReportApi"><option value="">Unknown</option><option value="dx12">DX12</option><option value="dx11">DX11</option><option value="dx9">DX9</option><option value="dx8">DX8</option><option value="vulkan">Vulkan</option><option value="opengl">OpenGL</option></select></label>
+        <label><span id="communityReportRouteLabel" data-icon="route">Route used</span><select id="communityReportRoute" required><option value="">Choose…</option><option value="feeder">Feeder</option><option value="renodx">RenoDX</option><option value="optiscaler">OptiScaler</option></select></label>
+        <label><span id="communityReportApiLabel" data-icon="api">Rendering API</span><select id="communityReportApi"><option value="">Unknown</option><option value="dx12">DX12</option><option value="dx11">DX11</option><option value="dx9">DX9</option><option value="dx8">DX8</option><option value="vulkan">Vulkan</option><option value="opengl">OpenGL</option></select></label>
       </div>
-      <fieldset class="community-verdicts"><legend id="communityVerdictLabel">Your result</legend><button type="button" data-verdict="green"><span>Working</span></button><button type="button" data-verdict="yellow"><span>Works with issues</span></button><button type="button" data-verdict="red"><span>Not working</span></button></fieldset>
-      <label class="community-comment"><span id="communityCommentLabel">Optional comment</span><textarea id="communityReportComment" maxlength="1200" rows="4"></textarea></label>
-      <div class="community-privacy"><b id="communityPrivacyTitle">Data that will be sent</b><div id="communityPrivacyData"></div><p id="communityPrivacyNote">No folder path or install identifier is sent. The server stores only a hash of a random app identifier.</p></div>
+      <fieldset class="community-verdicts"><legend id="communityVerdictLabel" data-icon="result">Your result</legend><button type="button" data-verdict="green"><b>Working</b><small>Game runs great</small></button><button type="button" data-verdict="yellow"><b>Works with issues</b><small>Minor or major issues</small></button><button type="button" data-verdict="red"><b>Not working</b><small>Doesn’t run or crashes</small></button></fieldset>
+      <label class="community-comment"><span id="communityCommentLabel" data-icon="comment">Optional comment</span><textarea id="communityReportComment" maxlength="1200" rows="4" placeholder="Write a comment…"></textarea><span class="community-count" id="communityCommentCount">0/1200</span></label>
+      <div class="community-privacy"><b id="communityPrivacyTitle" data-icon="sent">Data that will be sent</b><div id="communityPrivacyData"></div><p id="communityPrivacyNote">No folder path or install identifier is sent. The server stores only a hash of a random app identifier.</p></div>
       <p id="communityReportError" class="community-error" role="status"></p>
-      <div class="community-submit-row"><button type="button" class="ghost" id="communityReportCancel">Cancel</button><button type="submit" class="glass-btn" id="communityReportSubmit">Submit report</button></div>
+      <div class="community-submit-row"><span class="community-why" id="communityWhy">Your report helps improve compatibility for everyone.</span><button type="button" class="ghost" id="communityReportCancel">Cancel</button><button type="submit" class="glass-btn" id="communityReportSubmit">Submit report</button></div>
     </form>
   </dialog>
   <div id="copyFeedback" class="copy-feedback hidden" role="status" aria-live="polite"></div>
