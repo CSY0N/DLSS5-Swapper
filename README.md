@@ -50,259 +50,75 @@ A place to compare notes with other people, and eight faults fixed at the cause.
 
 ### The Community page — BETA
 
+Compatibility is something other people already know, and until now every one of
+them had to find out alone.
+
 <p><img src="docs/screenshots/10-community.png" alt="The Community page: every game people have reported on, with its artwork, verdict and comment count" width="100%"></p>
 
-- **What other people found, on the games you own.** Each game carries the
-  reports left on it: the route used, the rendering API, whether it worked, and
-  the hardware it worked on. Nothing leaves your machine until you fill in a
-  report and press send yourself.
+- **What other people found, on the games you own** - the route they used, the
+  rendering API, whether it worked, and the machine it worked on.
+- **A thread under any result**, with reactions, replies, and `@` mentions
+  limited to the people already on that game. Windows tells you when someone
+  answers or names you; a game's general comments stay quiet unless you ring
+  its bell, and all of it can be switched off in Settings.
 
 <p><img src="docs/screenshots/11-community-card.png" alt="One game's card opened: a report, the machine it ran on, reactions and a reply button" width="100%"></p>
 
-- **A thread under any result**, with reactions, replies, and `@` mentions
-  limited to the people already on that game. Windows tells you when someone
-  answers you or names you; the general comments on a game stay quiet unless
-  you ring its bell. All of it can be switched off in Settings.
-- **What you wrote stays yours.** Right-click a game card in Games or in
-  Community, or use the buttons inside a comment, to edit or delete your own
-  report and replies. Delete the last report on a game and the game leaves the
-  Community list with it.
+- **What you wrote stays yours.** Right-click a game in Games or Community, or
+  use the buttons inside a comment, to edit or delete your own report and
+  replies. Delete the last report on a game and the game leaves the list with it.
 
 <p><img src="docs/screenshots/12-games-menu.png" alt="The right-click menu on a game card, drawn by the app, with the way into the community on it" width="100%"></p>
-- **Signed with a name you choose** - a display name and one of twenty-four
-  icons drawn in the app rather than shipped as files, so they take their
-  colour from your theme.
-- **Every card is lit by the game's own artwork.** The poster and the banner
-  together decide the colour of the card, its background and the report dialog,
-  and the change is animated rather than switched.
+
+- **Every card is lit by the game's own artwork** - poster and banner together
+  decide its colour, and the change is animated rather than switched.
+- **Nothing leaves your machine unasked.** A report is filled in and sent by
+  hand, with every field shown first.
 
 <p><img src="docs/screenshots/13-community-report.png" alt="The report sheet for Battlefield 1, wearing the orange of its own poster, listing every field that will be sent" width="100%"></p>
-- **Nothing is hidden about what is sent:** *Community and privacy* below says
-  what a report carries, and **Remove my community activity** in Settings
-  withdraws all of it.
+
+- **Signed with a name you choose** - a display name and one of twenty-four
+  icons drawn in the app, so they take their colour from your theme.
+  **Remove my community activity** withdraws everything you ever left.
 
 <p><img src="docs/screenshots/14-settings-community.png" alt="Settings: the community display name, twenty-four avatars, the notifications switch and Remove my community activity" width="100%"></p>
 
-### Games it can now find and install into
+### And eight things that were wrong
 
-- **Xbox games are found without scanning every drive.** `.GamingRoot` markers
-  and the Gaming Services package roots are read directly, junctions are
-  resolved to the writable XboxGames copy, duplicates are matched by
-  `MicrosoftGame.config` identity, and a package that only exists under
-  WindowsApps stays visible instead of disappearing. Thanks to @BillyMRX1
-  (#204).
-- **The overlay installs into protected Xbox executables**, using the
-  architecture the scanner already established rather than reopening an
-  encrypted executable. Thanks to @BillyMRX1 (#206).
-- **A game that ships Windows' own debug helpers is no longer refused.**
-  `dbghelp.dll` and `dbgcore.dll` are watched because Ultimate ASI Loader ships
-  under those names - but Cyberpunk 2077 carries both for its own crash
-  reporting, so every OptiScaler install there was refused with "another
-  loader/mod is present". Microsoft's copies say so in their version resource
-  and the loaders do not, so the real ones are let through. Reported on #196.
+| | |
+|---|---|
+| **Xbox games** | Found from `.GamingRoot` and Gaming Services instead of an all-drive scan, and the overlay installs into protected executables. Thanks to @BillyMRX1 ([#204], [#206]) |
+| **Cyberpunk 2077** | Windows' own `dbghelp`/`dbgcore` no longer read as a rival mod loader, so OptiScaler installs ([#196]) |
+| **Antivirus** | The overlay page names the add-on Defender took, instead of waiting forever for a game that can never attach ([#197]) |
+| **Portable build** | Unpacks to `%TEMP%\DLSS5-Swapper`, one path an exclusion can keep across releases ([#197]) |
+| **Skipped overlay** | The install log says why in words rather than a bare code ([#197]) |
+| **Update check** | A check that could not run says so; only silence now means you are current ([#207]) |
+| **Overlay panel** | Drag its bottom-right corner to resize, 0.75x to 2.5x, remembered per game ([#202]) |
+| **dgVoodoo** | 4096 MB of emulated video memory, measured by @tomkolp as what SWTOR needs at 1440p ([#37]) |
 
-### When something goes wrong, it now says so
+[Full 2.2.4 notes →](https://github.com/rakanki911/DLSS5-Swapper/releases/tag/v2.2.4)
 
-- **Antivirus taking the overlay add-on is named.** Defender removes it as
-  `Trojan:Win32/Kepavll!rfn` - a machine-learning verdict on an unsigned native
-  DLL - and with the file gone the bridge still listened perfectly, so the
-  Overlay page went on saying "ready, waiting for a game" while no game could
-  ever attach. The page now names the missing file and the likely cause first.
-  A file left corrupt rather than deleted counts as missing too. Reported on
-  #197.
-- **The portable build unpacks to a folder an exclusion can name.** It used to
-  unpack into `%TEMP%` under a name computed from the version, so the path
-  changed with every release and an exclusion set for one build did nothing for
-  the next. It is `%TEMP%\DLSS5-Swapper` now. Reported on #197.
-- **The reason the overlay was skipped is readable.** It was printed as a bare
-  `overlaySkipped {...}` code, and the translation written for it would have
-  read "undefined" had it ever been reached. Someone on #197 spent a week
-  reinstalling with the answer sitting in that line.
-- **A failed update check no longer looks like good news.** The lookup returns
-  the same thing when it cannot run - offline, rate-limited, blocked - as when
-  the build is current, and the sidebar drew both as "nothing new". The two are
-  separate now: a check that could not run says so, and only silence means the
-  release really is the latest. Raised on #207.
+[#37]: https://github.com/rakanki911/DLSS5-Swapper/issues/37
+[#196]: https://github.com/rakanki911/DLSS5-Swapper/issues/196
+[#197]: https://github.com/rakanki911/DLSS5-Swapper/issues/197
+[#202]: https://github.com/rakanki911/DLSS5-Swapper/issues/202
+[#204]: https://github.com/rakanki911/DLSS5-Swapper/pull/204
+[#206]: https://github.com/rakanki911/DLSS5-Swapper/pull/206
+[#207]: https://github.com/rakanki911/DLSS5-Swapper/issues/207
 
-### The overlay
+## Earlier releases
 
-- **The panel can be resized by dragging its corner.** It was drawn at 534
-  pixels whatever the game ran at, which is 14% of the width of a 3840-wide
-  screen and too small to read (#202). The grip sets it between 0.75x and 2.5x
-  and ReShade's own config remembers it per game, since a 4K game and a 1080p
-  one want different sizes. The pixels are still drawn 1:1 with what the app
-  rendered, and pointer coordinates are divided back into panel space, so a
-  click lands where it looks at any size.
+Each one is written up in full - what broke, why, and what was changed.
 
-### Emulators
+| | |
+|---|---|
+| **2.2.3** | [Six reported faults, fixed at the cause](docs/releases/v2.2.3.md) - OptiScaler on older cards, a game's own stale shader compiler, the overlay on a scaled display |
+| **2.2.2** | [The reports people sent](docs/releases/v2.2.2.md) - games it could not find, installs it refused, the overlay's own page |
+| **2.2.1** | [The Overlay page](docs/releases/v2.2.1.md) - themes you can write yourself, and a preview that runs before you choose |
+| **2.2.0** | [Optional OptiScaler and a smarter library](docs/releases/v2.2.0.md) |
 
-- **dgVoodoo gets enough emulated video memory to finish a frame.** It ships
-  256 MB and enforces it; a DirectX 9 game at a modern resolution exhausts that
-  in seconds, `CreateTexture` fails in a loop of hundreds of thousands of
-  identical lines, and the game dies. This app already raised it to 1024, and
-  @tomkolp measured on #37 that SWTOR at 2560x1440 needs 4096 to render. The
-  value is a ceiling rather than an allocation, so a generous one costs nothing.
-
-## New in 2.2.3
-
-Six faults reported by people using 2.2.2, each fixed at the cause.
-
-### Installs that were refused for no good reason
-
-- **An older card can now try OptiScaler.** OptiScaler itself has always run on
-  RTX 40; what needs Blackwell is the neural model file. Upstream 0.2.0 says
-  plainly that older architectures work with a modded `nvngx_dlssnr.dll`, so
-  the card joins the driver as something said rather than enforced - and a
-  modded model already in the game folder is kept, never overwritten.
-- **A failed process check no longer refuses the install.** Reading the running
-  process list can fail on its own - PowerShell restricted by policy, a cold
-  WMI service - and that failure was being reported as "close the game first"
-  to people whose game was already closed.
-- **A saved backend profile no longer makes a game uninstallable.** ReShade
-  lets a preset be named anything, and mod packs ship them as `.txt`: the app
-  saved those and then refused to read them back, so the game could not be
-  installed again at all until the profile was deleted by hand. This is the
-  "Invalid backend profile" report.
-
-### Getting the neural pass to actually run
-
-- **A game's own outdated shader compiler is retired during the install.**
-  Spider-Man Remastered ships `D3DCompiler_47.dll` 6.3.9600 from 2013 beside
-  its executable, Windows loads that in preference to its own, and the neural
-  pass - compiled as Shader Model 5.1 - then silently produces nothing while
-  the install, the add-on and the frame counter all report success. The file
-  now goes into the backup, the game uses the copy Windows ships, and Restore
-  puts it back. Only ever when Windows has a newer copy to fall back on.
-
-### The in-game overlay
-
-- **The panel reaches the game on a display with scaling.** Chromium paints the
-  offscreen panel at the desktop's scale factor - 804 pixels wide at 150% for a
-  534-pixel panel - and every one of those frames was dropped by a size check,
-  on any scaled display, which is most of them. The panel is resampled back to
-  its transport size instead of being discarded in silence.
-
-### Wording
-
-- **The Feeder route is named for what it covers**: "No DLSS / Incompatible
-  DLSS", in all 38 languages. Thanks to @MaestroMetty (#48).
-
-## New in 2.2.2
-
-A release about the reports people sent, most of them fixed at the cause.
-
-### Games it can now find and install into
-
-- **Executables whose renderer cannot be read are offered anyway.** Protected
-  builds, script extenders like `f4se_loader`, and launchers that start the
-  real engine name no rendering API at all and were silently dropped - the
-  "no 3D executable" report. They now appear in the executable picker, with
-  the renderer shown as unknown for you to set.
-- **Ubisoft Connect games are discovered**, alongside Steam, Epic, GOG and the
-  Xbox folders.
-- **DXVK and vkd3d games are reported as Vulkan.** The scanner used to call
-  them DirectX and offer a route that installs a Direct3D hook, while the
-  installer refused to overwrite the wrapper - a game that could not be
-  installed with no explanation.
-- **Red Dead Redemption 2 follows the renderer you chose in the game**, read
-  from its own `system.xml`, instead of always reporting DirectX 12.
-
-### The in-game overlay
-
-- **A game that crashed no longer locks the overlay out of every game after
-  it.** Only one game at a time drives the panel, and a killed game could
-  leave its end of the pipe open forever - the panel then said it was waiting
-  for a design that never came.
-- **The game holds still while the panel is open.** No mouse or keyboard input
-  reaches the game, the way ReShade does for its own overlay, so a slider can
-  be judged on one fixed shot.
-- **The Overlay page says what the service is doing** - listening, connected
-  to a game, or not running - with a dot for each state.
-
-### Installing
-
-- **Files are installed writable.** Windows carries the read-only attribute
-  across a copy and the payload inside the installed app is read-only, which
-  is what "Unable to save configuration and/or current preset ... ReShade.ini"
-  on the game's screen means. It also broke a second install and the restore
-  after it.
-- **Feeder's Vulkan interop layer ships and is installed with a Vulkan game.**
-  Some drivers and emulators do not expose the KHR external-interop
-  extensions, and the install then looked perfect and did nothing.
-- **An older NVIDIA driver no longer blocks OptiScaler.** The neural-rendering
-  model file ships with this app rather than being taken from the driver, so
-  an older driver still runs - which matters because 616.64 and 616.86 are
-  measured upstream to fault inside NVIDIA's own runtime, and people roll back
-  deliberately. The ReShade and Feeder routes say so before installing.
-- **The professional Blackwell boards are accepted.** OptiScaler needs a
-  Blackwell card, and the check asked for a name matching "RTX 50xx" - an
-  RTX PRO 6000 Blackwell was refused for being called something else.
-- **A component that antivirus quarantines says so.** "Check your connection"
-  was shown for every failure, including the one where the connection is fine
-  and Defender removed the file after it verified.
-
-### Everyday
-
-- **An update notice** in the sidebar when a newer release exists. One lookup,
-  no identifiers sent, nothing downloaded or installed.
-- **Hiding a game is reversible**: Settings lists what is hidden with *Show
-  again*, and hiding asks first.
-- **Closing the window quits.** The overlay service held an offscreen window,
-  so the process stayed in Task Manager with nothing on screen.
-- **A faster, quieter start.** Drive discovery no longer blocks on a cold WMI
-  call, two game cards scanning at once can no longer erase each other's
-  results, and the add-ons page does not re-hash every file on each visit.
-- **A support button** on the About page, and in this README.
-
-### Components
-
-DLSS5-Feeder **0.14.0-beta.4** (was 0.12.0) · OptiScaler DLSS-NR
-**0.2.0-patch1** (was 0.1.1.5) · LumeniteFX updated · ReShade 6.8.0 and
-dgVoodoo2 2.87.4 already current.
-
-[Full 2.2.3 notes →](https://github.com/rakanki911/DLSS5-Swapper/releases/tag/v2.2.3) ·
-[What arrived in 2.2.2 →](https://github.com/rakanki911/DLSS5-Swapper/releases/tag/v2.2.2)
-
-## New in 2.2.1
-
-- **⭐ In-game overlay:** press **F8** and the app's own panel appears over the
-  running game — the same HTML, fonts and sliders as the preview, connected to
-  the pinned RenoDX v4.7 build so the controls move the settings that are really
-  loaded. **While the panel is open the game receives no mouse or keyboard
-  input**, so the camera holds still and a slider can be judged on one fixed
-  shot, exactly as ReShade does for its own overlay. Install it together with
-  DLSS from one switch, choose your hotkey, or remove it on its own.
-  **It supports DLSS5-Feeder and RenoDX v4.7 only** — the panel is built around
-  that exact, hash-verified build and is not offered for OptiScaler.
-- **Overlay themes, including your own:** Emerald, Azure and Amethyst, plus
-  **Create theme** — pick an accent colour and the panel's other shades are
-  derived from it, in the app and in the game alike.
-- **Per-game rendering API override:** now **optional**, with **Automatic** as
-  the default. Pick DirectX 8/9/10/11/12, Vulkan or OpenGL for a game that
-  reports the wrong renderer; automatic detection is left untouched.
-- **Artwork for everyone:** posters and banners come from Steam's public
-  endpoints with no key, so every user sees the same covers and heroes.
-- **Some issues were fixed**, including the overlay connection line that
-  contradicted the CONNECTED badge, dialogs that stayed dark in the light theme,
-  theme cards misaligned in Arabic/Persian/Urdu, and an updated overlay build
-  that refused to install over the previous one.
-
-[What arrived in 2.2.0 →](docs/releases/v2.2.0.md)
-
-### The Overlay page
-
-<p><img src="docs/screenshots/07-overlay.png" alt="Overlay page with the Emerald, Azure and Amethyst themes" width="100%"></p>
-
-### Create your own theme
-
-Pick an accent colour and the panel's other shades follow it. The preview is the
-real panel, not a colour swatch.
-
-<p><img src="docs/screenshots/08-overlay-create-theme.png" alt="Create a theme dialog with a live panel preview" width="100%"></p>
-
-### Preview before you choose
-
-<p><img src="docs/screenshots/09-overlay-preview.png" alt="Interactive overlay preview" width="100%"></p>
+Every release also carries its own notes and downloads on the
+[releases page](https://github.com/rakanki911/DLSS5-Swapper/releases).
 
 ## Compatibility
 
@@ -361,6 +177,7 @@ Compatibility varies by renderer and game. Xenia HUD correction remains experime
 <p><img src="https://raw.githubusercontent.com/rakanki911/DLSS5-Swapper/7415065e5c5437441d0e0b0a0362d0ada6d86e15/docs/screenshots/02-games.png" alt="Games" width="100%"></p>
 <p><img src="https://raw.githubusercontent.com/rakanki911/DLSS5-Swapper/7415065e5c5437441d0e0b0a0362d0ada6d86e15/docs/screenshots/03-library.png" alt="Library" width="100%"></p>
 <p><img src="https://raw.githubusercontent.com/rakanki911/DLSS5-Swapper/7415065e5c5437441d0e0b0a0362d0ada6d86e15/docs/screenshots/04-game.png" alt="Game details" width="100%"></p>
+<p><img src="docs/screenshots/07-overlay.png" alt="The Overlay page with the Emerald, Azure and Amethyst themes" width="100%"></p>
 
 ## Before installing
 
