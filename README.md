@@ -50,10 +50,15 @@ A place to compare notes with other people, and eight faults fixed at the cause.
 
 ### The Community page — BETA
 
+<p><img src="docs/screenshots/10-community.png" alt="The Community page: every game people have reported on, with its artwork, verdict and comment count" width="100%"></p>
+
 - **What other people found, on the games you own.** Each game carries the
   reports left on it: the route used, the rendering API, whether it worked, and
   the hardware it worked on. Nothing leaves your machine until you fill in a
   report and press send yourself.
+
+<p><img src="docs/screenshots/11-community-card.png" alt="One game's card opened: a report, the machine it ran on, reactions and a reply button" width="100%"></p>
+
 - **A thread under any result**, with reactions, replies, and `@` mentions
   limited to the people already on that game. Windows tells you when someone
   answers you or names you; the general comments on a game stay quiet unless
@@ -62,15 +67,21 @@ A place to compare notes with other people, and eight faults fixed at the cause.
   Community, or use the buttons inside a comment, to edit or delete your own
   report and replies. Delete the last report on a game and the game leaves the
   Community list with it.
+
+<p><img src="docs/screenshots/12-games-menu.png" alt="The right-click menu on a game card, drawn by the app, with the way into the community on it" width="100%"></p>
 - **Signed with a name you choose** - a display name and one of twenty-four
   icons drawn in the app rather than shipped as files, so they take their
   colour from your theme.
 - **Every card is lit by the game's own artwork.** The poster and the banner
   together decide the colour of the card, its background and the report dialog,
   and the change is animated rather than switched.
+
+<p><img src="docs/screenshots/13-community-report.png" alt="The report sheet for Battlefield 1, wearing the orange of its own poster, listing every field that will be sent" width="100%"></p>
 - **Nothing is hidden about what is sent:** *Community and privacy* below says
   what a report carries, and **Remove my community activity** in Settings
   withdraws all of it.
+
+<p><img src="docs/screenshots/14-settings-community.png" alt="Settings: the community display name, twenty-four avatars, the notifications switch and Remove my community activity" width="100%"></p>
 
 ### Games it can now find and install into
 
