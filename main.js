@@ -2,10 +2,11 @@
 // DLSS 5 Swapper
 // Finds the games already on the machine and installs DLSS 5 Neural
 // Rendering into them, using the scanners in src/core.
-const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, Menu, Notification, nativeImage, safeStorage } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL, fileURLToPath } = require('url');
+const { paletteFromPixels, mergePalettes } = require('./src/core/palette');
 const crypto = require('crypto');
 
 const os = require('os');
@@ -36,15 +37,21 @@ const featureText = (key, ...args) => featureI18n.t(loadState().lang, key, ...ar
 const vulkanLayer = require('./src/core/vulkan-layer');
 const { HistoryStore, knownFolders, fromManifests } = require('./src/core/history');
 const gameMenu = require('./src/core/game-menu');
-const { CommunityClient } = require('./src/community-client');
+const { CommunityClient, ADMIN_TOKEN_PATTERN } = require('./src/community-client');
+const { AdminVault } = require('./src/admin-vault');
 let historyStore;
 const history = () => historyStore || (historyStore = new HistoryStore(path.join(app.getPath('userData'), 'history.jsonl')));
 let communityClient;
+let adminVault;
+const adminAccess = () => adminVault || (adminVault = new AdminVault({
+  file: path.join(app.getPath('userData'), 'community-admin.bin'), storage: safeStorage
+}));
 const community = () => communityClient || (communityClient = new CommunityClient({
   file: path.join(app.getPath('userData'), 'community.json'),
   // Only ever set by hand, to point a development build at a server running
   // locally. Unset - which is every installed copy - it is the real one.
-  baseUrl: process.env.DLSS5_COMMUNITY_API || undefined
+  baseUrl: process.env.DLSS5_COMMUNITY_API || undefined,
+  getAdminToken: () => adminAccess().load()
 }));
 const communityAnswer = async work => {
   try { return { ok: true, ...(await work()) }; }
@@ -369,6 +376,7 @@ app.whenReady().then(async () => {
   // context by the tests, where src modules are stubbed and cannot be called.
   require('./src/overlay-ipc')({ app, ipcMain, dialog, shell, window: () => win, bridge: () => overlayBridge });
   createWindow();
+  startNotices();
   try {
     overlayBridge = await require('./src/overlay-bridge')({ BrowserWindow, userData: app.getPath('userData') });
     if (quitting) overlayBridge.close();
@@ -509,22 +517,47 @@ ipcMain.handle('settings', () => {
 // Network access stays in the main process. The renderer receives only parsed
 // data and cannot choose an arbitrary host or attach the private install id to
 // another request.
-ipcMain.handle('community-profile', () => community().profile());
+ipcMain.handle('community-profile', async () => {
+  if (adminAccess().load()) {
+    try { await community().adminStatus(); }
+    catch (error) { if (error.code === 'admin_unauthorized') adminAccess().clear(); }
+  }
+  return community().profile();
+});
 ipcMain.handle('community-profile-save', (_event, profile) => communityAnswer(async () => ({
-  profile: await community().saveProfile(profile && typeof profile === 'object' ? profile : {})
+  profile: await (async () => {
+    const input = profile && typeof profile === 'object' ? profile : {};
+    const candidate = String(input.name || '').trim();
+    if (!candidate.startsWith('dlss5_admin_')) return community().saveProfile(input);
+    if (!ADMIN_TOKEN_PATTERN.test(candidate)) throw Object.assign(new Error('Invalid administrator access code.'), { code: 'admin_unauthorized' });
+    const admin = await community().adminLogin(candidate);
+    adminAccess().save(candidate);
+    return { ...community().profile(), admin };
+  })()
+})));
+ipcMain.handle('community-admin-logout', () => communityAnswer(async () => {
+  adminAccess().clear();
+  community().adminLogout();
+  return { profile: { ...community().profile(), admin: null } };
+}));
+ipcMain.handle('community-delete-me', () => communityAnswer(async () => ({
+  result: await community().deleteMe()
 })));
 ipcMain.handle('community-cards', (_event, filters) => communityAnswer(async () => ({
-  cards: await community().cards(filters && typeof filters === 'object' ? filters : {})
+  ...(await community().cardsPage(filters && typeof filters === 'object' ? filters : {}))
 })));
-ipcMain.handle('community-replies', (_event, id) => communityAnswer(async () => ({
-  thread: await community().replies(id)
+ipcMain.handle('community-my-reports', () => communityAnswer(async () => ({
+  result: await community().myReports()
 })));
-ipcMain.handle('community-reply', (_event, id, body) => communityAnswer(async () => ({
-  reply: await community().reply(id, typeof body === 'string' ? body : '')
+ipcMain.handle('community-replies', (_event, id, fresh) => communityAnswer(async () => ({
+  thread: await community().replies(id, { fresh: fresh === true })
 })));
-ipcMain.handle('community-card', (_event, key, etag) => communityAnswer(async () => {
+ipcMain.handle('community-reply', (_event, id, body, mentions) => communityAnswer(async () => ({
+  reply: await community().reply(id, typeof body === 'string' ? body : '', Array.isArray(mentions) ? mentions : [])
+})));
+ipcMain.handle('community-card', (_event, key, etag, fresh) => communityAnswer(async () => {
   if (typeof key !== 'string' || key.length > 300) throw Object.assign(new Error('Invalid game card.'), { code: 'bad_card' });
-  const result = await community().card(key, typeof etag === 'string' ? etag : null);
+  const result = await community().card(key, typeof etag === 'string' ? etag : null, { fresh: fresh === true });
   return result.notModified ? result : { card: result.data, etag: result.etag };
 }));
 ipcMain.handle('community-updates', (_event, key, since, etag) => communityAnswer(async () => {
@@ -538,8 +571,14 @@ ipcMain.handle('community-report', (_event, report) => communityAnswer(async () 
 ipcMain.handle('community-withdraw', (_event, id) => communityAnswer(async () => ({
   result: await community().withdraw(id)
 })));
+ipcMain.handle('community-withdraw-reply', (_event, id) => communityAnswer(async () => ({
+  result: await community().withdrawReply(id)
+})));
 ipcMain.handle('community-reaction', (_event, id, emoji, on) => communityAnswer(async () => ({
   result: await community().react(id, emoji, on)
+})));
+ipcMain.handle('community-admin-moderate', (_event, kind, id, action) => communityAnswer(async () => ({
+  result: await community().adminModerate(kind, id, action)
 })));
 // The line over the title: where the game came from, and what the store calls
 // it. Both are already known - nothing here is guessed at.
@@ -555,12 +594,107 @@ function heroFor(dir) {
     return record && record.hero && onDisk(record.hero) ? record.hero : null;
   } catch { return null; }
 }
+// The scanner speaks in the name of the DLL it hooks, where "dxgi" covers both
+// DirectX 11 and 12; the community database speaks in the names people use. The
+// label is the only place the two are told apart, so the label decides. What it
+// cannot decide - DirectX 10, bare DXGI, an executable that named no renderer -
+// is left for the person to choose rather than guessed at.
+function communityApi(chosen) {
+  const label = String(chosen?.apiLabel || '');
+  if (/11\/12/.test(label)) return null;
+  if (/DirectX 12/i.test(label)) return 'dx12';
+  if (/DirectX 11/i.test(label)) return 'dx11';
+  if (/DirectX 9/i.test(label)) return 'dx9';
+  if (/DirectX 8/i.test(label)) return 'dx8';
+  if (/Vulkan/i.test(label)) return 'vulkan';
+  if (/OpenGL/i.test(label)) return 'opengl';
+  return null;
+}
+
+
+// ---------------------------------------------------------------- notices
+// A reply under your result, your name in a sentence, or a comment on a game
+// you follow. The server keeps the rows; this asks for the ones above the last
+// id it saw, so an app closed all week is told once rather than a hundred
+// times. The wording is the renderer's job - the community feature speaks the
+// two languages its own page does, not the thirty-eight the installer needs.
+const NOTICE_EVERY = 60_000;
+let noticeTimer = null;
+let noticeBusy = false;
+
+const noticesOn = () => loadState().communityNotices !== false;
+
+async function pollNotices() {
+  if (noticeBusy || !noticesOn() || !win || win.isDestroyed()) return;
+  noticeBusy = true;
+  try {
+    // The very first look only learns where the line is. Nobody wants to be
+    // greeted by every notification they have ever earned.
+    if (await community().noticeCatchUp()) return;
+    const answer = await community().notices();
+    const fresh = (answer && answer.notices || []).filter(notice => !notice.read);
+    if (fresh.length && win && !win.isDestroyed()) win.webContents.send('community-notices', fresh);
+  } catch { /* offline, or the service is down: try again next minute */ }
+  finally { noticeBusy = false; }
+}
+
+function startNotices() {
+  if (noticeTimer) clearInterval(noticeTimer);
+  noticeTimer = setInterval(() => { pollNotices(); }, NOTICE_EVERY);
+  setTimeout(() => { pollNotices(); }, 8000);
+}
+
+// Shown only after the page has said what they should say, and marked read
+// only after they have actually been shown - a crash in between should repeat
+// a notification, never swallow it.
+ipcMain.handle('community-notify', (_event, items) => {
+  if (!Array.isArray(items) || !Notification.isSupported() || !noticesOn()) return { ok: false };
+  for (const item of items.slice(0, 4)) {
+    const popup = new Notification({
+      title: String(item?.title || '').slice(0, 120),
+      body: String(item?.body || '').slice(0, 240)
+    });
+    popup.on('click', () => {
+      if (!win || win.isDestroyed()) return;
+      if (win.isMinimized()) win.restore();
+      win.show();
+      win.focus();
+      win.webContents.send('community-open', item);
+    });
+    popup.show();
+  }
+  return { ok: true };
+});
+
+ipcMain.handle('community-notices-read', () => communityAnswer(async () => ({
+  result: await community().readNotices()
+})));
+ipcMain.handle('community-notice-settings', (_event, on) => {
+  const state = loadState();
+  if (typeof on === 'boolean') { state.communityNotices = on; saveState(state); }
+  return { ok: true, on: state.communityNotices !== false };
+});
+ipcMain.handle('community-follow', (_event, key, on) => communityAnswer(async () => ({
+  result: await community().follow(String(key || ''), on !== false)
+})));
+ipcMain.handle('community-notices', () => communityAnswer(async () => ({
+  result: await community().notices()
+})));
+ipcMain.handle('community-edit-reply', (_event, id, body) => communityAnswer(async () => ({
+  result: await community().editReply(id, typeof body === 'string' ? body : '')
+})));
+
 ipcMain.handle('community-prefill', async (_event, dir) => {
   if (typeof dir !== 'string' || !path.isAbsolute(dir)) return { ok: false, error: 'bad_game' };
   const game = lastGames.find(row => keyFor(row.dir) === keyFor(dir));
   if (!game) return { ok: false, error: 'bad_game' };
   return communityAnswer(async () => {
     const scan = await scanGame(dir);
+    // The API the person actually installed against: their own override when
+    // they set one, detection otherwise.
+    const target = scan.chosen
+      ? renderingApi.effective(scan.chosen, apiPreference(loadState(), dir, scan.chosen.path))
+      : null;
     const gpus = await guards.gpuInfo().catch(() => null);
     const gpu = Array.isArray(gpus) && gpus[0] ? gpus[0] : {};
     const route = scan.install?.route === 'native' ? 'renodx' : (scan.install?.route || null);
@@ -571,11 +705,15 @@ ipcMain.handle('community-prefill', async (_event, dir) => {
       // so the report header can have it without asking the network again - and
       // a game found in a folder has no store id to look one up with anyway.
       hero: heroFor(dir),
+      // The colour of the two pictures this dialog is about to show. Without
+      // this it fell back to a hash of the title, which is why a red game came
+      // out green.
+      palette: paletteOfAll(heroFor(dir), game.poster?.url || game.poster || null),
       kicker: kickerFor(dir, game),
       game: { store, storeId: store && game.id ? String(game.id) : null, title: game.name,
         exe: scan.chosen?.rel ? path.basename(scan.chosen.rel) : null },
       route: ['feeder', 'renodx', 'optiscaler'].includes(route) ? route : null,
-      api: scan.chosen?.api || null,
+      api: communityApi(target),
       gpu: gpu.name || null, driver: gpu.driver || null,
       cpu: os.cpus()?.[0]?.model || null,
       os: `${process.platform} ${os.release()}`, app: app.getVersion()
@@ -955,6 +1093,15 @@ ipcMain.handle('addon-remove', (_event, file) => {
 
 ipcMain.handle('art-status', () => ({ available: art.available() }));
 
+ipcMain.handle('community-palette', (_event, pixels) => {
+  if (!Array.isArray(pixels) || pixels.length !== 12 * 12 * 4 ||
+      pixels.some(value => !Number.isInteger(value) || value < 0 || value > 255)) return null;
+  return paletteFromPixels(Uint8Array.from(pixels), 'rgba');
+});
+
+ipcMain.handle('community-palette-merge', (_event, palettes) =>
+  mergePalettes(Array.isArray(palettes) ? palettes.slice(0, 2) : []));
+
 // Bumped whenever the art picked for a game could change, so folders cached
 // under the old rule fetch again instead of keeping a bad banner forever.
 const ART_RULES = 4;
@@ -969,6 +1116,23 @@ const onDisk = url => {
   if (typeof url !== 'string' || !url.startsWith('file:')) return false;
   try { return fs.existsSync(fileURLToPath(url)); } catch { return false; }
 };
+// The colour a card is lit by. Electron already decodes every picture format
+// the art comes in, so the image is shrunk to a thumbnail and read from that -
+// twelve by twelve is enough to say what a poster is mostly made of, and small
+// enough that doing it is free.
+function paletteOf(fileUrl) {
+  if (!fileUrl) return null;
+  try {
+    const image = nativeImage.createFromPath(fileURLToPath(fileUrl));
+    if (image.isEmpty()) return null;
+    const small = image.resize({ width: 12, height: 12, quality: 'good' });
+    return paletteFromPixels(small.toBitmap(), 'bgra');
+  } catch { return null; }
+}
+
+// The banner and the poster are both on screen, so both decide.
+const paletteOfAll = (...files) => mergePalettes(files.map(paletteOf));
+
 ipcMain.handle('community-art', async (_event, key, title) => {
   if (typeof key !== 'string' || !/^[a-z]+:[A-Za-z0-9._-]{1,64}$/.test(key)) return { none: true };
   const state = loadState();
@@ -978,7 +1142,14 @@ ipcMain.handle('community-art', async (_event, key, title) => {
   // away, and a record pointing at a missing file renders as a broken image
   // forever - the cache has to notice rather than insist.
   const cached = state.art && state.art[cacheKey];
-  if (cached && (cached.none || onDisk(cached.cover))) return cached;
+  if (cached && (cached.none || onDisk(cached.cover))) {
+    if (cached.none || cached.palette !== undefined) return cached;
+    // Remembered before there was such a thing as a palette: read one now
+    // rather than leaving the card grey until the art is downloaded again.
+    cached.palette = paletteOfAll(cached.cover, cached.poster);
+    saveState(state);
+    return cached;
+  }
 
   const [kind, id] = key.split(':');
   try {
@@ -1005,7 +1176,9 @@ ipcMain.handle('community-art', async (_event, key, title) => {
     let poster = null;
     try { poster = pathToFileURL(await art.download(hit.coverUrl, path.join(dest, cacheKey + '-tall.jpg'))).href; }
     catch { poster = null; }
-    const record = { cover, poster, fetchedAt: Date.now() };
+    // The wide art is what the header shows, so it decides; the poster is
+    // the fallback for a game whose banner is a black-and-white logo.
+    const record = { cover, poster, palette: paletteOfAll(cover, poster), fetchedAt: Date.now() };
     state.art = state.art || {};
     state.art[cacheKey] = record;
     saveState(state);

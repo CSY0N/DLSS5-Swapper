@@ -42,6 +42,95 @@ Both are on the latest release page, with `SHA256SUMS.txt` beside them.
 - **In-game overlay:** press **F8** to open the app's own panel over the running game and move the real DLSS Neural Rendering sliders while you play. Supports the **DLSS5-Feeder** and **RenoDX v4.7** routes only. Drag the grip in its bottom right corner to resize it; each game remembers its own size.
 - **Rendering API override:** optional, per game, with **Automatic** as the default; detection is never overwritten.
 - **Custom add-ons:** the Add-ons page remains available alongside the integrated installation routes.
+- **Community (BETA):** read what worked for other people on the games you own, leave your own report, and talk it over underneath it. Opt-in, and everything you leave can be edited, deleted or withdrawn.
+
+## New in 2.2.4
+
+A place to compare notes with other people, and eight faults fixed at the cause.
+
+### The Community page — BETA
+
+- **What other people found, on the games you own.** Each game carries the
+  reports left on it: the route used, the rendering API, whether it worked, and
+  the hardware it worked on. Nothing leaves your machine until you fill in a
+  report and press send yourself.
+- **A thread under any result**, with reactions, replies, and `@` mentions
+  limited to the people already on that game. Windows tells you when someone
+  answers you or names you; the general comments on a game stay quiet unless
+  you ring its bell. All of it can be switched off in Settings.
+- **What you wrote stays yours.** Right-click a game card in Games or in
+  Community, or use the buttons inside a comment, to edit or delete your own
+  report and replies. Delete the last report on a game and the game leaves the
+  Community list with it.
+- **Signed with a name you choose** - a display name and one of twenty-four
+  icons drawn in the app rather than shipped as files, so they take their
+  colour from your theme.
+- **Every card is lit by the game's own artwork.** The poster and the banner
+  together decide the colour of the card, its background and the report dialog,
+  and the change is animated rather than switched.
+- **Nothing is hidden about what is sent:** *Community and privacy* below says
+  what a report carries, and **Remove my community activity** in Settings
+  withdraws all of it.
+
+### Games it can now find and install into
+
+- **Xbox games are found without scanning every drive.** `.GamingRoot` markers
+  and the Gaming Services package roots are read directly, junctions are
+  resolved to the writable XboxGames copy, duplicates are matched by
+  `MicrosoftGame.config` identity, and a package that only exists under
+  WindowsApps stays visible instead of disappearing. Thanks to @BillyMRX1
+  (#204).
+- **The overlay installs into protected Xbox executables**, using the
+  architecture the scanner already established rather than reopening an
+  encrypted executable. Thanks to @BillyMRX1 (#206).
+- **A game that ships Windows' own debug helpers is no longer refused.**
+  `dbghelp.dll` and `dbgcore.dll` are watched because Ultimate ASI Loader ships
+  under those names - but Cyberpunk 2077 carries both for its own crash
+  reporting, so every OptiScaler install there was refused with "another
+  loader/mod is present". Microsoft's copies say so in their version resource
+  and the loaders do not, so the real ones are let through. Reported on #196.
+
+### When something goes wrong, it now says so
+
+- **Antivirus taking the overlay add-on is named.** Defender removes it as
+  `Trojan:Win32/Kepavll!rfn` - a machine-learning verdict on an unsigned native
+  DLL - and with the file gone the bridge still listened perfectly, so the
+  Overlay page went on saying "ready, waiting for a game" while no game could
+  ever attach. The page now names the missing file and the likely cause first.
+  A file left corrupt rather than deleted counts as missing too. Reported on
+  #197.
+- **The portable build unpacks to a folder an exclusion can name.** It used to
+  unpack into `%TEMP%` under a name computed from the version, so the path
+  changed with every release and an exclusion set for one build did nothing for
+  the next. It is `%TEMP%\DLSS5-Swapper` now. Reported on #197.
+- **The reason the overlay was skipped is readable.** It was printed as a bare
+  `overlaySkipped {...}` code, and the translation written for it would have
+  read "undefined" had it ever been reached. Someone on #197 spent a week
+  reinstalling with the answer sitting in that line.
+- **A failed update check no longer looks like good news.** The lookup returns
+  the same thing when it cannot run - offline, rate-limited, blocked - as when
+  the build is current, and the sidebar drew both as "nothing new". The two are
+  separate now: a check that could not run says so, and only silence means the
+  release really is the latest. Raised on #207.
+
+### The overlay
+
+- **The panel can be resized by dragging its corner.** It was drawn at 534
+  pixels whatever the game ran at, which is 14% of the width of a 3840-wide
+  screen and too small to read (#202). The grip sets it between 0.75x and 2.5x
+  and ReShade's own config remembers it per game, since a 4K game and a 1080p
+  one want different sizes. The pixels are still drawn 1:1 with what the app
+  rendered, and pointer coordinates are divided back into panel space, so a
+  click lands where it looks at any size.
+
+### Emulators
+
+- **dgVoodoo gets enough emulated video memory to finish a frame.** It ships
+  256 MB and enforces it; a DirectX 9 game at a modern resolution exhausts that
+  in seconds, `CreateTexture` fails in a loop of hundreds of thousands of
+  identical lines, and the game dies. This app already raised it to 1024, and
+  @tomkolp measured on #37 that SWTOR at 2560x1440 needs 4096 to render. The
+  value is a ceiling rather than an allocation, so a generous one costs nothing.
 
 ## New in 2.2.3
 
@@ -268,6 +357,20 @@ Compatibility varies by renderer and game. Xenia HUD correction remains experime
 - **Requirements:** Feeder needs Visual C++ runtimes (x64, plus x86 for 32-bit games). Some components download on first use.
 - **Compatibility is not guaranteed.** Keep backups; existing mods may conflict. Not every reported game crash is fixed.
 - **Linux/Proton:** experimental community source only; no Linux binaries in this release.
+
+## Community and privacy
+
+- Opening the Community page downloads public game reports. A live connection
+  count is held only in memory; no connection identifiers are stored.
+- A report is sent only after you review and submit the fields shown in its
+  dialog: game, route, rendering API, result, optional comment, GPU, driver,
+  CPU, OS and app version.
+- The app uses a random install ID to prevent duplicate votes. The server stores
+  only its hash. **Remove my community activity** hides all your reports and
+  replies and resets your public community profile.
+- The owner-only administrator access code is verified by the community server
+  and stored locally with Windows encrypted storage. It is never written to the
+  public profile or the normal community settings file.
 
 ## Support
 
