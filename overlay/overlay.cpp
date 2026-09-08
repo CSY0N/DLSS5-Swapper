@@ -201,6 +201,9 @@ struct surface {
     // ReShade.ini on the first frame and written back when a drag ends.
     float scale = 0.f;
     bool sizing = false;
+    // Where the corner sat relative to the pointer when the drag began, so
+    // the panel does not jump by the width of the grip on the first press.
+    float grab = 0.f;
 };
 std::unordered_map<reshade::api::effect_runtime *, std::unique_ptr<surface>> surfaces;
 bool registered = false;
@@ -291,11 +294,17 @@ void draw(reshade::api::effect_runtime *runtime) {
     const int x = static_cast<int>((io.MousePos.x - origin.x) / s.scale), y = static_cast<int>((io.MousePos.y - origin.y) / s.scale);
     // A grip in the bottom right corner, drawn over the panel's own pixels.
     // Dragging it sets the size; ReShade.ini remembers it for this game.
-    const float grip = 18.f;
+    //
+    // It is a hit test rather than a second ImGui item: the panel's own
+    // invisible button is submitted first and covers this corner, so it takes
+    // the press and holds ActiveId, and any later item over the same pixels is
+    // then refused - the grip could be hovered but never dragged. The title bar
+    // is picked out of the same button the same way, a few lines below.
+    const float grip = 20.f;
     const ImVec2 corner(origin.x + width, origin.y + drawn);
-    ImGui::SetCursorScreenPos(ImVec2(corner.x - grip, corner.y - grip));
-    ImGui::InvisibleButton("##lab-panel-grip", ImVec2(grip, grip));
-    const bool on_grip = ImGui::IsItemHovered() || s.sizing;
+    const bool over_grip = hovered && io.MousePos.x >= corner.x - grip && io.MousePos.y >= corner.y - grip;
+    const bool on_grip = over_grip || s.sizing;
+    if (on_grip) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
     auto *list = ImGui::GetWindowDrawList();
     const ImU32 ink = on_grip ? IM_COL32(255, 255, 255, 220) : IM_COL32(255, 255, 255, 90);
     for (int i = 1; i <= 3; ++i) {
@@ -308,15 +317,19 @@ void draw(reshade::api::effect_runtime *runtime) {
     const float fits = std::min(io.DisplaySize.x / panel_width, io.DisplaySize.y / float(bridge.height));
     const float ceiling = std::max(min_scale, std::min(fits, max_scale));
     if (s.scale > ceiling) s.scale = ceiling;
-    if (ImGui::IsItemActive()) {
+    if (s.sizing) {
+        // Held: the pointer keeps the drag even when it runs ahead of the
+        // corner and leaves the panel, which is what a fast drag does.
+        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) { s.sizing = false; save_scale(runtime, s.scale); }
+        else {
+            // Follow the corner the pointer is actually dragging, along the
+            // diagonal, so the panel keeps its shape.
+            const float wanted = (io.MousePos.x + s.grab - origin.x) / panel_width;
+            s.scale = std::clamp(wanted, min_scale, ceiling);
+        }
+    } else if (over_grip && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
         s.sizing = true;
-        // Follow the corner the pointer is actually dragging, along the
-        // diagonal, so the panel keeps its shape.
-        const float wanted = (io.MousePos.x - origin.x) / panel_width;
-        s.scale = std::clamp(wanted, min_scale, ceiling);
-    } else if (s.sizing) {
-        s.sizing = false;
-        save_scale(runtime, s.scale);
+        s.grab = corner.x - io.MousePos.x;
     }
     if (s.sizing || on_grip) return;
     if (hovered && y < 52 && x < 320 && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) s.moving = true;
