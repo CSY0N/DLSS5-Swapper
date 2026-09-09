@@ -532,6 +532,29 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round
   justify-content: space-between;
   margin: 26px 4px 12px;
 }
+/* #231: the way into the library sat at the far end of it. With thirty games,
+   the moment you want "Add a game" is the moment you have just scrolled it off
+   the top. The heading rides along instead - it is the only sticky thing on
+   the page, and it sits below the game sheet and every menu. */
+.section-head.games-heading {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  /* Bleed over the view's own 6px side padding so no card shows past the edges
+     of the bar as it scrolls underneath. */
+  margin: 0 -6px 12px;
+  padding: 18px 10px 12px;
+  /* The page behind is a gradient, so the bar borrows it rather than painting
+     a colour that would only match in one place. */
+  background: color-mix(in srgb, var(--bg-3) 72%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid transparent;
+  transition: border-color .2s ease;
+}
+.section-head.games-heading.stuck { border-bottom-color: var(--stroke); }
+@media (prefers-reduced-motion: reduce) {
+  .section-head.games-heading { transition: none }
+}
 .section-head h3 { font-size: 15.5px; font-weight: 650; }
 .section-head .count { color: var(--dim); font-weight: 400; font-size: 13px; margin-inline-start: 6px; }
 .row { display: flex; gap: 8px; }

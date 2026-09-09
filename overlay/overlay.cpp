@@ -29,6 +29,7 @@
 #include "live-controls.hpp"
 #include "renodx-ui-bridge.hpp"
 #include "feeder-controls.hpp"
+#include "status-badge.hpp"
 #include "overlay-hotkey.hpp"
 #ifdef LAB_RENODX_PROBE
 #include "renodx-ui-probe.hpp"
@@ -191,15 +192,13 @@ struct surface {
     uint32_t uploaded = 0;
     bool dragging = false, focused = false, hovered = false;
     int last_x = -9999, last_y = -9999;
-    bool open = false, moving = false;
+    bool moving = false;
     lab_live::controls live;
     nr_live::controls nr;
     ULONGLONG telemetry_at = 0;
     std::string last_status;
-    ImVec2 position = ImVec2(32, 32);
     // Draw size as a multiple of the panel's own pixels. Read from
     // ReShade.ini on the first frame and written back when a drag ends.
-    float scale = 0.f;
     bool sizing = false;
     // Where the corner sat relative to the pointer when the drag began, so
     // the panel does not jump by the width of the grip on the first press.
@@ -207,6 +206,54 @@ struct surface {
 };
 std::unordered_map<reshade::api::effect_runtime *, std::unique_ptr<surface>> surfaces;
 bool registered = false;
+// Whether the panel is up, and where and how big it is, belong to the person
+// rather than to a swapchain. Games that create and tear down D3D12 devices -
+// a throwaway one to query capabilities, then the real one, and every mode
+// change after that - destroy the effect runtime under us, and a per-runtime
+// flag meant the panel closed itself every time. Reported against a WinGDK
+// title whose log shows five device creations in 1.2 seconds.
+bool panel_open = false;
+// One card for the process, for the same reason the panel's own state is: a
+// game that tears its D3D12 device down and builds another must not take the
+// person's badge with it.
+lab_badge::badge status_card;
+// Whether the neural pass is actually running right now. RenoDX answers when it
+// is the consumer; otherwise the Feeder does, and only when it is really
+// feeding rather than merely loaded.
+// RenoDX's own hotkey (F6) flips the neural pass without our knowing: the value
+// we hold comes from its UI dispatch, and that only runs while its page is
+// being drawn. RenoDX does keep the truth in ReShade's config, which is in
+// memory and readable every frame, so that is what the card follows - with the
+// UI value used when it is the one that moved last.
+struct neural_state {
+  int config = -1;          // NeuralUplift as last read
+  bool from_config = false; // which source moved most recently
+  bool value = false;
+  ULONGLONG next_poll = 0;
+  float last_field = -1.f;
+};
+neural_state neural;
+
+template<class Runtime> bool neural_running(Runtime *runtime, const surface &s) {
+  const auto &nr = s.nr.fields[2];   // "Enable DLSS Neural Rendering"
+  const bool have_field = s.nr.active && nr.seen;
+  if (have_field && nr.value != neural.last_field) { neural.last_field = nr.value; neural.value = nr.value != 0.f; neural.from_config = false; }
+  if (GetTickCount64() >= neural.next_poll) {
+    neural.next_poll = GetTickCount64() + 200;
+    int uplift = 0;
+    if (reshade::get_config_value(runtime, "RenoDX.DLSS5", "NeuralUplift", uplift)) {
+      if (uplift != neural.config) { neural.config = uplift; neural.value = uplift != 0; neural.from_config = true; }
+    } else if (!have_field) {
+      // No RenoDX at all: the Feeder is the consumer, and only when it is
+      // really feeding rather than merely loaded.
+      neural.value = s.feed.feeding;
+    }
+  }
+  if (!have_field && neural.config < 0) neural.value = s.feed.feeding;
+  return neural.value;
+}
+ImVec2 panel_position = ImVec2(32, 32);
+float panel_scale = 0.f;
 constexpr float min_scale = 0.75f, max_scale = 2.5f;
 // Stored as a whole percentage so it survives ReShade's own int handling
 // and stays readable to anyone who opens ReShade.ini.
@@ -241,6 +288,12 @@ void draw(reshade::api::effect_runtime *runtime) {
     bridge.poll();
     if (s.live.dirty) { s.live.discover(runtime); s.last_status.clear(); }
     for (const auto &command : bridge.commands) {
+        // 50 is the card, and it is answered here rather than in any of the
+        // three control sets: it belongs to this add-on, not to a consumer.
+        if (command.id == 50) {
+            if (command.kind == 1 && (command.value == 0.f || command.value == 1.f)) status_card.set(command.value != 0.f);
+            continue;
+        }
         const bool applied = command.id >= 301 ? (bridge.feed_peer && s.feed.accept(s.live.epoch,command)) : command.id >= 101 ? (bridge.nr_peer && s.nr.accept(s.live.epoch, command)) : s.live.apply(runtime, command);
 #ifdef LAB_OVERLAY_SMOKE
         if (applied) reshade::log::message(reshade::log::level::info, "LAB_LIVE_COMMAND_APPLIED");
@@ -253,6 +306,9 @@ void draw(reshade::api::effect_runtime *runtime) {
     if (bridge.connected() && bridge.live_peer && GetTickCount64() >= s.telemetry_at) {
         s.telemetry_at = GetTickCount64() + 200;
         auto json = s.live.status(runtime);
+        // The app's panel draws the switch for this, so it has to be told what
+        // the switch currently is - otherwise the tick is a guess.
+        json.pop_back(); json += std::string(",\"badge\":") + (status_card.shown ? "true" : "false") + "}";
         if (bridge.nr_peer) { json.pop_back(); json += s.nr.json() + "}"; }
         if (bridge.feed_peer) { json.pop_back(); json += s.feed.json() + "}"; }
         if (json != s.last_status) {
@@ -280,8 +336,8 @@ void draw(reshade::api::effect_runtime *runtime) {
         s.uploaded = bridge.sequence;
     }
     const auto origin = vector_call(imgui_function_table_instance()->GetCursorScreenPos);
-    if (s.scale <= 0.f) s.scale = load_scale(runtime);
-    const float width = panel_width * s.scale, drawn = bridge.height * s.scale;
+    if (panel_scale <= 0.f) panel_scale = load_scale(runtime);
+    const float width = panel_width * panel_scale, drawn = bridge.height * panel_scale;
     // The panel's own pixels are still 1:1 with what the app drew; only the
     // rectangle they are stretched into changes, so fonts and sliders never
     // inherit ReShade's font or scaling.
@@ -291,7 +347,7 @@ void draw(reshade::api::effect_runtime *runtime) {
     const bool hovered = ImGui::IsItemHovered();
     // Back into the panel's own coordinates: the app knows nothing about the
     // size it is being drawn at, and a click has to land where it looks.
-    const int x = static_cast<int>((io.MousePos.x - origin.x) / s.scale), y = static_cast<int>((io.MousePos.y - origin.y) / s.scale);
+    const int x = static_cast<int>((io.MousePos.x - origin.x) / panel_scale), y = static_cast<int>((io.MousePos.y - origin.y) / panel_scale);
     // A grip in the bottom right corner, drawn over the panel's own pixels.
     // Dragging it sets the size; ReShade.ini remembers it for this game.
     //
@@ -316,16 +372,16 @@ void draw(reshade::api::effect_runtime *runtime) {
     // with it, leaving no way to make it small again.
     const float fits = std::min(io.DisplaySize.x / panel_width, io.DisplaySize.y / float(bridge.height));
     const float ceiling = std::max(min_scale, std::min(fits, max_scale));
-    if (s.scale > ceiling) s.scale = ceiling;
+    if (panel_scale > ceiling) panel_scale = ceiling;
     if (s.sizing) {
         // Held: the pointer keeps the drag even when it runs ahead of the
         // corner and leaves the panel, which is what a fast drag does.
-        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) { s.sizing = false; save_scale(runtime, s.scale); }
+        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) { s.sizing = false; save_scale(runtime, panel_scale); }
         else {
             // Follow the corner the pointer is actually dragging, along the
             // diagonal, so the panel keeps its shape.
             const float wanted = (io.MousePos.x + s.grab - origin.x) / panel_width;
-            s.scale = std::clamp(wanted, min_scale, ceiling);
+            panel_scale = std::clamp(wanted, min_scale, ceiling);
         }
     } else if (over_grip && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
         s.sizing = true;
@@ -335,7 +391,7 @@ void draw(reshade::api::effect_runtime *runtime) {
     if (hovered && y < 52 && x < 320 && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) s.moving = true;
     if (s.moving) {
         if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) s.moving = false;
-        else { s.position.x += io.MouseDelta.x; s.position.y += io.MouseDelta.y; }
+        else { panel_position.x += io.MouseDelta.x; panel_position.y += io.MouseDelta.y; }
         return;
     }
     if ((hovered || s.dragging || s.hovered) && (x != s.last_x || y != s.last_y)) {
@@ -372,7 +428,7 @@ void reloaded(reshade::api::effect_runtime *runtime) { state_for(runtime).live.d
 void controls(reshade::api::effect_runtime *runtime) {
     auto &s = state_for(runtime);
     ImGui::TextWrapped("Optional compact overlay. Choose its hotkey on the Overlay page in DLSS 5 Swapper (default F8). Home keeps the original tools available.");
-    if (ImGui::Button("Open compact overlay")) { s.open = true; runtime->open_overlay(false, reshade::api::input_source::none); }
+    if (ImGui::Button("Open compact overlay")) { panel_open = true; runtime->open_overlay(false, reshade::api::input_source::none); }
     ImGui::TextWrapped("Keep DLSS 5 Swapper open. Drag the panel header to move it. Escape closes only the compact panel. While the panel is open the game receives no mouse or keyboard input.");
     ImGui::TextWrapped("The compact panel automatically connects to the verified v4.7 build using an experimental adapter. It redirects RenoDX's UI dispatch temporarily; unsupported builds are refused. Original settings are saved by RenoDX.");
 }
@@ -381,13 +437,31 @@ void compact_draw(reshade::api::effect_runtime *runtime) {
     nr_probe::tick(runtime);
 #endif
     auto &s = state_for(runtime);
-    s.hotkey.poll();
-    if (s.hotkey.pressed(runtime)) s.open = !s.open;
 #ifdef LAB_OVERLAY_SMOKE
-    s.open = true; s.position = ImVec2(0, 0);
+    panel_open = true; panel_position = ImVec2(0, 0);
+    // The card is what this run is here to exercise: the text measurement in it
+    // is the call that crashed two games, so the smoke host must reach it.
+    status_card.shown = true; status_card.loaded = true;
 #endif
-    if (s.open && runtime->is_key_pressed(VK_ESCAPE)) { s.open = false; runtime->block_input_next_frame(); }
-    if (!s.open) {
+    status_card.load(runtime);
+    // Drawn at the end of every path, not the start: the last window submitted
+    // is the topmost one, and the card must never end up beneath the panel.
+    // It follows the mouse only while ReShade is holding it - our panel, or its
+    // own overlay on Home; otherwise the pointer belongs to the game.
+    struct card_guard {
+        reshade::api::effect_runtime *runtime; const surface &s;
+        ~card_guard() {
+            status_card.draw(neural_running(runtime, s), panel_open || ImGui::GetIO().WantCaptureMouse);
+            status_card.save(runtime);
+        }
+    } card{ runtime, s };
+    // Moving and resizing it is only possible while the panel is up, because
+    // that is the only time ReShade is holding the mouse anyway. The card never
+    // asks for input of its own and never blocks the game's.
+    s.hotkey.poll();
+    if (s.hotkey.pressed(runtime)) panel_open = !panel_open;
+    if (panel_open && runtime->is_key_pressed(VK_ESCAPE)) { panel_open = false; runtime->block_input_next_frame(); }
+    if (!panel_open) {
         if (s.bridge.connected()) { s.bridge.send(6, 0, 0); s.bridge.poll(); s.bridge.disconnect(); }
         release_texture(runtime, s); s.dragging = s.moving = s.focused = false; s.last_status.clear(); return;
     }
@@ -402,13 +476,13 @@ void compact_draw(reshade::api::effect_runtime *runtime) {
     // Escape and the hotkey still arrive: ReShade keeps reading input for
     // itself while it withholds it from the game.
     runtime->block_input_next_frame();
-    if (s.scale <= 0.f) s.scale = load_scale(runtime);
-    const float height = std::min(float(s.bridge.height ? s.bridge.height : 806) * s.scale, std::max(120.f, io.DisplaySize.y));
-    const float window_width = panel_width * s.scale;
-    s.position.x = std::clamp(s.position.x, 0.f, std::max(0.f, io.DisplaySize.x - window_width));
-    s.position.y = std::clamp(s.position.y, 0.f, std::max(0.f, io.DisplaySize.y - height));
+    if (panel_scale <= 0.f) panel_scale = load_scale(runtime);
+    const float height = std::min(float(s.bridge.height ? s.bridge.height : 806) * panel_scale, std::max(120.f, io.DisplaySize.y));
+    const float window_width = panel_width * panel_scale;
+    panel_position.x = std::clamp(panel_position.x, 0.f, std::max(0.f, io.DisplaySize.x - window_width));
+    panel_position.y = std::clamp(panel_position.y, 0.f, std::max(0.f, io.DisplaySize.y - height));
     ImGui::SetNextWindowDockID(0, ImGuiCond_Always);
-    ImGui::SetNextWindowPos(s.position, ImGuiCond_Always);
+    ImGui::SetNextWindowPos(panel_position, ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(window_width, height), ImGuiCond_Always);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
@@ -426,7 +500,7 @@ extern "C" __declspec(dllexport) bool AddonInit(HMODULE addon, HMODULE reshade_m
     reshade::register_event<reshade::addon_event::reshade_reloaded_effects>(reloaded);
     reshade::register_event<reshade::addon_event::reshade_overlay>(compact_draw);
     registered = true;
-    reshade::log::message(reshade::log::level::info, "DLSS 5 Swapper shared surface registered. RenoDX v4.7 UI adapter connects automatically, is experimental and hash-pinned. Keep DLSS 5 Swapper open.");
+    reshade::log::message(reshade::log::level::debug, "DLSS 5 Swapper shared surface registered. RenoDX v4.7 UI adapter connects automatically, is experimental and hash-pinned. Keep DLSS 5 Swapper open.");
     return true;
 }
 extern "C" __declspec(dllexport) void AddonUninit(HMODULE addon, HMODULE reshade_module) {

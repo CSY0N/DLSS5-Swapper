@@ -420,7 +420,11 @@ async function applyFeeder(config, log) {
   if (!feederReady) {
     throw fail('errFeederSupportMissing');
   }
-  if (!['dxgi', 'd3d8', 'd3d9', 'opengl', 'vulkan'].includes(api) || (api === 'd3d8' && bitness !== 32)) {
+  // DirectDraw, like DX8, exists only as a 32-bit wrapper: dgVoodoo ships
+  // DDraw.dll under MS\x86 and nowhere else, because no 64-bit game ever used
+  // it. #150 is the Genesis emulators this reaches.
+  if (!['dxgi', 'ddraw', 'd3d8', 'd3d9', 'opengl', 'vulkan'].includes(api) ||
+      ((api === 'd3d8' || api === 'ddraw') && bitness !== 32)) {
     throw fail('errFeederApiUnsupported', { api, bitness });
   }
   if (api === 'vulkan' && (!source.feeder.vulkanOk || !vulkanLayerTarget)) {
@@ -442,10 +446,10 @@ async function applyFeeder(config, log) {
   // D3D8/9 is translated to D3D11 first. ReShade must then hook DXGI; d3d9.dll
   // belongs to dgVoodoo and using ReShade under that same name would bypass it.
   let reshadeApi = api;
-  if (api === 'd3d8' || api === 'd3d9') {
+  if (api === 'd3d8' || api === 'd3d9' || api === 'ddraw') {
     const dg = source.feeder.dgVoodooDir;
     if (!dg) throw fail('errDgVoodooMissing');
-    const dllName = api === 'd3d8' ? 'D3D8.dll' : 'D3D9.dll';
+    const dllName = api === 'd3d8' ? 'D3D8.dll' : api === 'ddraw' ? 'DDraw.dll' : 'D3D9.dll';
     const officialDll = path.join(dg, 'MS', bitness === 32 ? 'x86' : 'x64', dllName);
     // Retain compatibility with old x86 payload/test layouts, never use that
     // x86 fallback for SWTOR's 64-bit executable.
@@ -454,7 +458,10 @@ async function applyFeeder(config, log) {
     const dgCpl = path.join(dg, 'dgVoodooCpl.exe');
     if (![dgDll, dgConf, dgCpl].every((file) => fs.existsSync(file))) throw fail('errDgVoodooMissing');
     if (pe.getBitness(dgDll) && pe.getBitness(dgDll) !== bitness) throw fail('errReShadeArchitecture');
-    for (const src of [dgDll, dgCpl]) {
+    // A DirectDraw title reaches Direct3D 7 through D3DImm, and dgVoodoo ships
+    // the pair together. Without it, a game that uses both gets half a wrapper.
+    const immediate = api === 'ddraw' ? path.join(path.dirname(dgDll), 'D3DImm.dll') : null;
+    for (const src of [dgDll, dgCpl, ...(immediate && fs.existsSync(immediate) ? [immediate] : [])]) {
       const rel = await copyTracked(manifest, gameDir, src, path.join(exeDir, path.basename(src)), { kind: 'dgvoodoo' });
       log('added', { rel, version: pe.getFileVersion(src) });
     }
@@ -545,15 +552,23 @@ async function applyFeeder(config, log) {
     feederConfig.configureFeed(feederConfig.readText(cfgPath)), { kind: 'config' }
   );
 
+  // #251: the multipass consumer replaces the ordinary one rather than joining
+  // it - loading both leaves the tickbox saying the neural pass is on while the
+  // picture says otherwise. One name, one file, chosen here and nowhere else.
+  const multipass = Boolean(config && config.multipass) &&
+    Boolean(source.feeder.multipassAddon) && fs.existsSync(source.feeder.multipassAddon);
+  const consumerName = multipass ? 'renodx-dlss.addon64' : 'renodx-dlss5.addon64';
+  const consumerFile = multipass ? source.feeder.multipassAddon : source.feeder.hostAddon;
+
   const hostDir = bitness === 32 ? path.join(exeDir, 'host64') : exeDir;
   const hostExe = bitness === 32 ? path.join(hostDir, 'dlss5-feed-host64.exe') : null;
   const hostFiles = bitness === 32 ? [
     [source.feeder.host64, hostExe, 'feeder'],
-    [source.feeder.hostAddon, path.join(hostDir, 'renodx-dlss5.addon64'), 'addon'],
+    [consumerFile, path.join(hostDir, consumerName), 'addon'],
     [neural.path, path.join(hostDir, neural.name), 'runtime'],
     [dlss.path, path.join(hostDir, dlss.name), 'runtime']
   ] : [
-    [source.feeder.hostAddon, path.join(exeDir, 'renodx-dlss5.addon64'), 'addon'],
+    [consumerFile, path.join(exeDir, consumerName), 'addon'],
     [neural.path, path.join(exeDir, neural.name), 'runtime'],
     [dlss.path, path.join(exeDir, dlss.name), 'runtime']
   ];
@@ -592,7 +607,7 @@ async function applyFeeder(config, log) {
     }
   }
   await enableAddonInIni(exeDir, bitness === 32 ? 'dlss5-feed.addon32' : 'dlss5-feed.addon64', log, gameDir, manifest);
-  await enableAddonInIni(hostDir, 'renodx-dlss5.addon64', log, gameDir, manifest);
+  await enableAddonInIni(hostDir, consumerName, log, gameDir, manifest);
   await saveActiveManifest(gameDir, manifest);
   log('applyDone');
   return manifest;
@@ -651,9 +666,18 @@ async function applySwap(config, onLog) {
   if (!canWrite(exeDir)) throw fail('errNoWriteAccess');
   if (!source.hasNeuralRendering) throw fail('errNoNeuralRuntime');
 
+  // #251: ShortFuse's DLSS Tool is the same shape of install as the native
+  // route - ReShade, the neural runtime, one RenoDX add-on beside the game -
+  // with a different add-on and two settings of its own. It is not a variant
+  // of the Feeder: the Feeder looks for a consumer named renodx-dlss5*,
+  // deep-fried-chicken or alexs-toolkit, and this one is none of those.
+  const multipass = config.route === 'renodx' &&
+    Boolean(source.feeder && source.feeder.multipassAddon) && fs.existsSync(source.feeder.multipassAddon);
+  if (config.route === 'renodx' && !multipass) throw fail('errMultipassMissing');
+
   const scan = await scanGame(gameDir);
   const manifest = beginManifest(gameDir, exePath, api);
-  manifest.route = 'native';
+  manifest.route = multipass ? 'renodx' : 'native';
   manifest.game.apiLabel = config.apiLabel;
   const setup = setupRunner || runSetup;
 
@@ -711,8 +735,9 @@ async function applySwap(config, onLog) {
   }
 
   // 3) The RenoDX add-on itself.
-  if (source.addon) {
-    const addonName = path.basename(source.addon);
+  const addonSource = multipass ? source.feeder.multipassAddon : source.addon;
+  if (addonSource) {
+    const addonName = path.basename(addonSource);
     const dest = path.join(exeDir, addonName);
     const rel = path.relative(gameDir, dest);
     if (fs.existsSync(dest)) {
@@ -721,12 +746,17 @@ async function applySwap(config, onLog) {
       rememberReplacement(manifest, {
         rel,
         oldVersion: pe.getFileVersion(dest),
-        newVersion: pe.getFileVersion(source.addon)
+        newVersion: pe.getFileVersion(addonSource)
       });
     } else {
       rememberAdded(manifest, rel);
     }
-    await copyTracked(manifest, gameDir, source.addon, dest, { kind: 'addon' });
+    await copyTracked(manifest, gameDir, addonSource, dest, { kind: 'addon' });
+    // Nothing is written into the add-on's own configuration. It ships with
+    // defaults that work, it writes its own file on first run, and every value
+    // this app set from the outside turned out to be a value it had chosen
+    // better for itself. A game installed this way gets the add-on exactly as
+    // its author shipped it.
     log('addonInstalled', { name: addonName });
   }
 
@@ -913,4 +943,25 @@ async function restore(gameDir, onLog) {
   return true;
 }
 
-module.exports = { applySwap, restore, restoreFiles, retireOldShaderCompiler, canWrite, backupRoot, compareVersions, beginManifest, originalPath, copyTracked, writeTracked, saveActiveManifest, enableAddonInIni, trackBeforeWrite };
+// #155: a ReShade.ini left read-only by an install from before this was fixed
+// stays read-only until the next install rewrites it - and updating the app is
+// not an install. ReShade then covers the game with an error banner it cannot
+// dismiss. Clearing the attribute needs no install and cannot lose anything:
+// the file's contents are untouched, only Windows' refusal to let ReShade
+// rewrite them is lifted.
+async function makeReShadeConfigWritable(exeDir) {
+  const cleared = [];
+  for (const name of ['ReShade.ini', 'ReShadePreset.ini']) {
+    const file = path.join(exeDir, name);
+    try {
+      const stat = await fs.promises.stat(file);
+      // 0o200 is the owner-write bit; Windows clears it for a read-only file.
+      if (stat.mode & 0o200) continue;
+      await fs.promises.chmod(file, 0o666);
+      cleared.push(name);
+    } catch { /* absent, or not ours to change */ }
+  }
+  return cleared;
+}
+
+module.exports = { makeReShadeConfigWritable, applySwap, restore, restoreFiles, retireOldShaderCompiler, canWrite, backupRoot, compareVersions, beginManifest, originalPath, copyTracked, writeTracked, saveActiveManifest, enableAddonInIni, trackBeforeWrite };

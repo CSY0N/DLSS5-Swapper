@@ -133,6 +133,7 @@ const REASONS = {
   installer: 'rInstaller',
   'no-exe': 'rNoExe',
   'no-graphics-exe': 'rNoGraphics',
+  'renderer-in-dll': 'rRendererInDll',
   'xbox-protected': 'rXboxProtected',
   error: 'rError'
 };
@@ -184,7 +185,7 @@ function renderGameFilters() {
   const apis = [
     ['all', t('allApis')], ['dx11-dx12', 'DirectX 11 / 12'],
     ...['DirectX 12', 'DirectX 11', 'DirectX 10', 'DirectX 9', 'DirectX 8', 'Vulkan', 'OpenGL'].map((api) => [api, api]),
-    ['no-graphics-exe', t('rNoGraphics')], ['no-exe', t('rNoExe')],
+    ['no-graphics-exe', t('rNoGraphics')], ['renderer-in-dll', t('rRendererInDll')], ['no-exe', t('rNoExe')],
     ['pending', t('scanning')]
   ];
   for (const game of state.games) {
@@ -434,6 +435,12 @@ async function renderSettings() {
         aria-label="${t('setNotices')}" aria-describedby="setNoticesHint">
         <span class="knob"></span>
       </button></div>
+    <div class="set-row"><div><div class="k">${t('setTray')}</div>
+      <div class="v" id="setTrayHint">${t('setTrayHint')}</div></div>
+      <button class="setting-switch" id="setTray" type="button" role="switch"
+        aria-checked="${info.closeToTray !== false}" aria-label="${t('setTray')}" aria-describedby="setTrayHint">
+        <span class="knob"></span>
+      </button></div>
     <div class="set-row"><div><div class="k">${t('setAutoScan')}</div>
       <div class="v">${t('setAutoScanHint')}</div></div>
       <button class="setting-switch" id="setAutoScan" type="button" role="switch"
@@ -481,6 +488,16 @@ async function renderSettings() {
     try {
       const answer = await window.lab.communityNoticeSettings(on);
       toggle.setAttribute('aria-checked', String(answer.on));
+    } finally { toggle.disabled = false; }
+  };
+  $('setTray').onclick = async () => {
+    const toggle = $('setTray');
+    const on = toggle.getAttribute('aria-checked') !== 'true';
+    toggle.disabled = true;
+    try {
+      toggle.setAttribute('aria-checked', String(await window.lab.setCloseToTray(on)));
+    } catch (error) {
+      log(error.message);
     } finally { toggle.disabled = false; }
   };
   $('setGroupGames').onclick = async () => {
@@ -754,20 +771,22 @@ function installOptions(d, pick, dir) {
         <option value="optiscaler"${opti ? ' selected' : ''}${optiReason ? ' disabled' : ''}>OptiScaler DLSS-NR</option>
       </select></label>
       ${!opti ? `<label><span>${t('fRoute')}</span><select id="routeChoice">${routes.filter(item => item !== 'optiscaler').map((item) =>
-        `<option value="${item}"${item === route ? ' selected' : ''}>${t(item === 'feeder' ? 'routeFeeder' : 'routeNative')}</option>`).join('')}</select></label>
+        `<option value="${item}"${item === route ? ' selected' : ''}>${t(item === 'feeder' ? 'routeFeeder' : item === 'renodx' ? 'routeRenodx' : 'routeNative')}</option>`).join('')}</select></label>
       ` : ''}
+      ${opti ? `<label><span>${t('fOptiBuild')}</span><select id="optiBuild"></select></label>` : ''}
     </div>
     ${notesBox([
       `<div class="emu-note" id="apiHint"><span>${t('apiOverrideHint')}</span>${api.api === 'vulkan' && !opti ? `<span>${t('apiVulkanHint')}</span>` : ''}</div>`,
       `<div class="emu-note backend-note" id="backendHint"><span>${t(opti ? 'optiHint' : 'backendHint')}</span>
         ${optiReason ? `<span>${t(optiReason)}</span>` : ''}
         ${route === 'native' ? `<span>${t('nativeEffectsHint')}</span>` : ''}
+        ${route === 'renodx' ? `<span>${t('routeRenodxHint')}</span>` : ''}
         ${opti && (api.api === 'vulkan' || api.label === 'DirectX 11') ? `<span>${t('optiBridgeHint')}</span>` : ''}
         ${opti && api.api === 'vulkan' ? `<span>${t('optiVulkanHint')}</span>` : ''}
       </div>`,
       pick.installIssue ? `<div class="emu-note compatibility-warning" role="alert">${t(pick.installIssue)}</div>` : '',
       warning,
-      ['d3d8', 'd3d9'].includes(api.api) ? `<div class="emu-note">${t('legacyRendererHint')}</div>` : '',
+      ['ddraw', 'd3d8', 'd3d9'].includes(api.api) ? `<div class="emu-note">${t('legacyRendererHint')}</div>` : '',
       pick.emulator ? `<div class="emu-note"><b>${esc(pick.emulator.name)} · ${esc(pick.emulator.system)}</b><span>${esc(pick.emulator.hint)}</span><span>${t('emulatorDepthHint')}</span>${pick.emulator.key === 'xenia' ? `<span>${t('xeniaUiHint')}</span>` : ''}</div>` : ''
     ], Boolean(warning || pick.installIssue))}`;
 }
@@ -914,6 +933,24 @@ async function openSheet(dir, keepLog = false) {
       $('apiChoice')?.focus();
     }
   };
+  // Filled in after the sheet exists - it was being written before, when
+  // $('optiBuild') was still null, so the select rendered and stayed empty.
+  // Only one game at a time is ever pinned to an older build, and only to one
+  // the app already carries, so the list comes from the main process (#238).
+  const buildSelect = $('optiBuild');
+  if (buildSelect) {
+    window.lab.optiscalerBuilds(dir).then(({ builds, current }) => {
+      if ($('optiBuild') !== buildSelect) return;   // the sheet moved on
+      buildSelect.innerHTML = builds.map((v, i) =>
+        `<option value="${esc(v)}"${v === current ? ' selected' : ''}>${esc(v)}${i === 0 ? ` · ${t('optiBuildCurrent')}` : ''}</option>`).join('');
+      buildSelect.onchange = async () => {
+        buildSelect.disabled = true;
+        try { await window.lab.setOptiscalerBuild(dir, buildSelect.value); }
+        catch (error) { log(error.message); }
+        finally { buildSelect.disabled = false; }
+      };
+    }).catch(() => buildSelect.closest('label')?.remove());
+  }
   const routeSelect = $('routeChoice');
   if (routeSelect) routeSelect.onchange = () => { routeChoice.set(dir, routeSelect.value); openSheet(dir, true); };
   const backendSelect = $('backendChoice');
@@ -960,6 +997,31 @@ async function runJob(kind, dir) {
   jobLog(kind === 'install' ? '--- installing ---' : '--- restoring ---');
 
   const pick = sheetDetails ? chosenExe(sheetDetails, dir) : null;
+
+  // The driver that cannot run the neural pass is worth one question rather
+  // than a line in a log nobody reads (#229, #258, #104). Asked once per
+  // driver version, and never a refusal - the install still works, and people
+  // do install deliberately on these drivers.
+  if (kind === 'install') {
+    let driver = { fault: false };
+    try { driver = await window.lab.driverNeuralFault(); } catch { /* no nvidia-smi is not a reason to stop */ }
+    if (driver.fault && !driver.acknowledged) {
+      const go = await ask({
+        icon: 'warning', title: t('driverFaultTitle'), body: t('driverFaultBody', driver.names),
+        confirm: t('driverFaultGo'), cancel: t('cancel')
+      });
+      if (!go) {
+        jobLog(t('driverFaultStopped'));
+        jobRunning = false;
+        install.textContent = t('install');
+        install.disabled = restoreBtn.disabled = false;
+        document.querySelectorAll('#sheet select, #exeSelect, #sheetClose').forEach(e => { e.disabled = false; });
+        return;
+      }
+      try { await window.lab.acknowledgeDriver(driver.names); } catch { /* asking twice is not a failure */ }
+    }
+  }
+
   let res;
   try { res = kind === 'install'
     ? await window.lab.install(
@@ -1092,6 +1154,8 @@ $('langMenu').onclick = async (e) => {
   $('langMenu').classList.add('hidden');
   applyLang(item.dataset.lang);
   await window.lab.setLang(state.lang);
+  // The main process has no translations, so the tray menu is told what to say.
+  window.lab.setTrayLabels({ show: t('trayShow'), quit: t('trayQuit') });
 };
 
 document.addEventListener('click', () => {
@@ -1307,6 +1371,18 @@ async function openGameMenu(card, position) {
   }
 }
 
+// The pinned games heading grows a hairline only once something has scrolled
+// under it, so a page that fits on screen has no stray line across it.
+{
+  const view = $('view-games');
+  const head = view && view.querySelector('.games-heading');
+  if (view && head) {
+    const mark = () => head.classList.toggle('stuck', view.scrollTop > 4);
+    view.addEventListener('scroll', mark, { passive: true });
+    mark();
+  }
+}
+
 for (const container of [$('groups'), $('recents')]) {
   container.oncontextmenu = event => {
     const card = event.target.closest('.card, .rcard');
@@ -1379,6 +1455,9 @@ document.addEventListener('drop', (e) => e.preventDefault());
   document.documentElement.dataset.theme = state.theme;
   applyLang(boot.lang || 'en');
   $('statusVersion').textContent = `v${boot.version}`;
+  // Nothing this app installs is on disk. Saying so now beats letting somebody
+  // pick a game, choose a route and press Install before finding out (#220).
+  if (boot.payloadMissing) log(boot.payloadMissing);
   showUpdateNotice();
   state.logo = boot;
   paintBrand();

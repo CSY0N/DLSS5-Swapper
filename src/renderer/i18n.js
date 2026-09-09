@@ -103,7 +103,7 @@ const S = {
     installed: 'Installed', notPresent: 'Not present', notInstalled: 'Not installed', none: 'none',
     install: 'Install DLSS 5', installing: 'Installing…', restore: 'Restore originals', restoring: 'Restoring…',
     jobReady: 'Ready.', noDlss: 'no DLSS', addonShort: 'add-on',
-    rInstaller: 'Installer folder', rNoExe: 'No executable', rNoGraphics: 'No 3D executable', rXboxProtected: 'Protected Xbox package — move or reinstall it to XboxGames', rError: 'Scan failed',
+    rInstaller: 'Installer folder', rNoExe: 'No executable', rNoGraphics: 'No 3D executable', rRendererInDll: 'Renderer is in a separate DLL - not supported yet', rXboxProtected: 'Protected Xbox package — move or reinstall it to XboxGames', rError: 'Scan failed',
     navAddons: 'Add-ons', addonActivate: 'Activate', addonActive: 'Active', addonShipped: 'Shipped with the app',
     addonHint: 'The add-on that ships with the app is always installed. Switch on any of these to load with it.',
     addonNameClash: (n) => `${n} was switched off: two builds cannot share one file name.`,
@@ -113,6 +113,22 @@ const S = {
     addonDescHint: 'One line per point', cancel: 'Cancel', addonRemove: 'Remove',
     addonTag: 'Tag',
     histEmpty: 'No installs recorded yet.', restored: 'restored', replacedAdded: (r, a) => `${r} replaced · ${a} added`,
+    fOptiBuild: 'OptiScaler build', optiBuildCurrent: 'current',
+    routeRenodx: 'RenoDX DLSS Tool (multipass)',
+    routeRenodxHint: 'ShortFuse’s DLSS Tool build. It hooks Present, so it works on games with no DLSS of their own, and it runs the neural pass 1 to 10 times per frame - set Pass Count in RenoDX’s own page (Home). It replaces the ordinary RenoDX consumer; the two cannot both be loaded.',
+    errMultipassMissing: 'This build does not carry the RenoDX DLSS Tool add-on.',
+    multipassConfigured: 'DLSS Tool set to hook on Present, DLSS not required',
+    multipassHint: 'The multipass consumer runs the neural pass more than once per frame. It replaces the ordinary one - the two cannot both be loaded, and this install swaps the file for you.',
+    driverFaultTitle: 'Your driver cannot run the neural pass',
+    driverFaultBody: (names) => `${names}
+
+Drivers 616.64 and newer fault inside NVIDIA's own neural runtime on every evaluate. 616.56 is the last one measured to complete one.
+
+The install will work. The neural pass will not appear in game until you roll the driver back.`,
+    driverFaultGo: 'Install anyway',
+    driverFaultStopped: 'stopped - driver not accepted',
+    setTray: 'Keep running in the system tray', setTrayHint: 'Closing the window hides it to the tray instead of quitting. Use Quit in the tray menu to exit.',
+    trayShow: 'Open DLSS 5 Swapper', trayQuit: 'Quit',
     setAutoScan: 'Scan all drives automatically', setAutoScanHint: 'Off by default. User-added folders are always scanned.',
     setNotices: 'Community notifications', setNoticesHint: 'Tell me when somebody replies to my comment, mentions me, or comments on a game I follow.',
     setGroupGames: 'Group games by store', setGroupGamesHint: 'Turn off to show all games and emulators in one alphabetical grid, without store sections.',
@@ -218,6 +234,22 @@ const S = {
     addonDescHint: 'سطر لكل نقطة', cancel: 'إلغاء', addonRemove: 'حذف',
     addonTag: 'وسم',
     histEmpty: 'ما فيه عمليات مسجّلة بعد.', restored: 'مُرجَعة', replacedAdded: (r, a) => `${r} مُستبدل · ${a} مُضاف`,
+    fOptiBuild: 'نسخة OptiScaler', optiBuildCurrent: 'الحالية',
+    routeRenodx: 'RenoDX DLSS Tool (تمريرات متعددة)',
+    routeRenodxHint: 'نسخة ShortFuse من أداة DLSS. تعترض Present فتعمل على الألعاب التي لا DLSS فيها، وتشغّل المعالجة العصبية من مرة إلى عشر في الإطار — يُضبط العدد من صفحة RenoDX نفسها بمفتاح Home. وهي تحلّ محلّ مستهلك RenoDX العادي، ولا يمكن تحميل الاثنين معاً.',
+    errMultipassMissing: 'هذه النسخة لا تحمل ملحق RenoDX DLSS Tool.',
+    multipassConfigured: 'ضُبطت أداة DLSS على الاعتراض عند Present، دون اشتراط DLSS',
+    multipassHint: 'المستهلك متعدد التمريرات يشغّل المعالجة العصبية أكثر من مرة في الإطار. وهو يحلّ محلّ العادي — لا يمكن تحميل الاثنين معاً، والتثبيت يبدّل الملف نيابة عنك.',
+    driverFaultTitle: 'تعريفك لا يستطيع تشغيل المعالجة العصبية',
+    driverFaultBody: (names) => `${names}
+
+التعريفات 616.64 وما بعدها تتعطّل داخل منظومة NVIDIA العصبية نفسها في كل عملية، و616.56 آخر إصدار قِيس وهو يكملها.
+
+التثبيت سينجح. لكن المعالجة العصبية لن تظهر في اللعبة حتى تُرجع التعريف.`,
+    driverFaultGo: 'ثبّت على أي حال',
+    driverFaultStopped: 'أُوقف - لم يُقبل التعريف',
+    setTray: 'الإبقاء عليه في شريط النظام', setTrayHint: 'إغلاق النافذة يخفيها في شريط النظام بدل إنهاء البرنامج. استخدم «إنهاء» من قائمة الأيقونة للخروج.',
+    trayShow: 'فتح DLSS 5 Swapper', trayQuit: 'إنهاء',
     setAutoScan: 'فحص جميع الأقراص تلقائياً', setAutoScanHint: 'متوقف افتراضياً. المجلدات التي تضيفها تُفحص دائماً.',
     setFolders: 'المجلدات الممسوحة', setAdd: 'إضافة', setLibrary: 'ملف المكتبة', setReset: 'تصفير',
     setRoots: 'مكتشفة في أقراصك',

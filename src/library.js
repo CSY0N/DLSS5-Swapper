@@ -227,6 +227,18 @@ function drives() {
 // Folders that sit beside games in a library but are not games: launcher
 // plumbing and save data. Cheaper and safer than guessing from the contents -
 // steamapps does hold executables, three levels down.
+// An engine's own furniture. Whatever else these hold, none of them is a game
+// you can install into, and naming one after its folder put "Engine" and
+// "Binaries" in somebody's library - where "Engine" then matched the artwork
+// for Wallpaper Engine (#253).
+const ENGINE_SCAFFOLD = /^(engine|binaries|content|plugins|saved|intermediate|shaders?|config|win64|wingdk|win32|x64|x86)$/i;
+
+// An Unreal game ships its own copy of the engine beside the project, so a
+// folder holding Engine\Binaries is one game, not a shelf of them.
+function isUnrealGameRoot(dir) {
+  try { return fs.statSync(path.join(dir, 'Engine', 'Binaries')).isDirectory(); } catch { return false; }
+}
+
 const NOT_A_GAME_DIR = /^(steamapps|gamesave|gamesaves|workshop|downloading|shadercache|temp|tmp|backup|_dlss5_backup|reshade-shaders|saves?|savegames?|redist|_?commonredist|installers?|setup|dlc|mods?|tools?)$/i;
 
 // A game folder holds a runnable file somewhere near its top. Three levels
@@ -273,10 +285,26 @@ function autoRoots() {
 function folder(root, label = 'My folders', onlyGames = false) {
   let entries = [];
   try { entries = fs.readdirSync(root, { withFileTypes: true }); } catch { return []; }
-  return entries
-    .filter((e) => e.isDirectory() && !NOT_A_GAME.test(e.name))
+  // Somebody who points this at one game's folder means that game. Listing its
+  // insides gave them "Engine" and "Binaries" and no way to reach the game at
+  // all, which is what #253 reported.
+  if (isUnrealGameRoot(root))
+    return [{ launcher: label, id: null, name: path.basename(root), dir: root, poster: null }];
+  const found = entries
+    .filter((e) => e.isDirectory() && !NOT_A_GAME.test(e.name) && !ENGINE_SCAFFOLD.test(e.name))
     .filter((e) => !onlyGames || (!NOT_A_GAME_DIR.test(e.name) && holdsGame(path.join(root, e.name))))
     .map((e) => ({ launcher: label, id: null, name: e.name, dir: path.join(root, e.name), poster: null }));
+  // Nothing inside looked like a game, but the folder itself runs one: that is
+  // a game folder someone added with the wrong button, and it should still
+  // work rather than adding nothing.
+  //
+  // Only ever for a folder the person chose. A swept-up root is a shelf by
+  // definition - `onlyGames` is what says so - and D:\SteamLibrary holds
+  // nothing but steamapps, which this filters out, so without this guard the
+  // library itself was added as a game called "SteamLibrary".
+  if (!onlyGames && !found.length && holdsGame(root))
+    return [{ launcher: label, id: null, name: path.basename(root), dir: root, poster: null }];
+  return found;
 }
 
 // ---------- Xbox app / Microsoft Store ----------

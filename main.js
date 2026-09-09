@@ -2,7 +2,7 @@
 // DLSS 5 Swapper
 // Finds the games already on the machine and installs DLSS 5 Neural
 // Rendering into them, using the scanners in src/core.
-const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, Menu, Notification, nativeImage, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, Menu, Tray, Notification, nativeImage, safeStorage } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL, fileURLToPath } = require('url');
@@ -15,7 +15,7 @@ const { scanGame } = require('./src/core/scan.js');
 const { discover, folder, dedupe, isInside, steam } = require('./src/library');
 const { contextForSteamGame, createSetupRunner } = require('./src/core/proton');
 const art = require('./src/steamart');
-const { backupRoot, saveActiveManifest, writeTracked } = require('./src/core/apply.js');
+const { backupRoot, saveActiveManifest, writeTracked, makeReShadeConfigWritable } = require('./src/core/apply.js');
 const { scanSource } = require('./src/core/scan.js');
 const pe = require('./src/core/pe.js');
 const { ensureLumenite, ensureDgVoodoo, missingVCRuntime } = require('./src/core/runtime-components.js');
@@ -27,6 +27,7 @@ const installRoutes = require('./src/shared/install-routes');
 const renderingApi = require('./src/shared/rendering-api');
 const { projectUrl } = require('./src/core/project-links');
 const optiscaler = require('./src/core/optiscaler');
+const { missingPayload } = require('./src/core/payload-guidance');
 const backends = require('./src/core/backend-manager');
 const journal = require('./src/core/file-journal');
 const guards = require('./src/core/install-guards');
@@ -293,6 +294,60 @@ function posterUrl(game, state) {
   return null;
 }
 
+// The tray. Closing the window puts the app here rather than ending it, which
+// is what #255 asked for: people close a window out of habit and then wonder
+// why the overlay stopped answering in the game they are still playing.
+let tray = null;
+// The main process has no translations of its own, so the renderer hands these
+// over the way it already does for the game context menu.
+let trayLabels = { show: 'Open DLSS 5 Swapper', quit: 'Quit' };
+
+function showWindow() {
+  if (!win || win.isDestroyed()) return;
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+}
+
+function buildTrayMenu() {
+  if (!tray || tray.isDestroyed()) return;
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: trayLabels.show, click: showWindow },
+    { type: 'separator' },
+    // The only way out that means it: everything else hides the window.
+    { label: trayLabels.quit, click: () => { quitting = true; app.quit(); } }
+  ]));
+}
+
+function ensureTray() {
+  if (tray && !tray.isDestroyed()) return tray;
+  const source = nativeImage.createFromPath(path.join(__dirname, 'src', 'renderer', 'icon.png'));
+  // A 16px tray icon on Windows; an empty image would throw, so a full-size
+  // fallback is better than no tray at all.
+  const icon = source.isEmpty() ? source : source.resize({ width: 16, height: 16, quality: 'good' });
+  try { tray = new Tray(icon); } catch { return null; }
+  tray.setToolTip('DLSS 5 Swapper');
+  tray.on('click', showWindow);
+  tray.on('double-click', showWindow);
+  buildTrayMenu();
+  return tray;
+}
+
+// The portable build runs from a folder it extracts into %TEMP% on each launch;
+// an installed copy runs from where it was installed. Which one is speaking
+// changes what the person should do about a missing payload.
+const runningPortable = () =>
+  Boolean(process.env.PORTABLE_EXECUTABLE_DIR) ||
+  /[\/]Temp[\/]/i.test(process.resourcesPath || '');
+
+const payloadMissing = () => missingPayload({
+  packaged: app.isPackaged,
+  resourcesPath: process.resourcesPath || __dirname,
+  appRoot: __dirname,
+  portable: runningPortable(),
+  temp: app.getPath ? (() => { try { return app.getPath('temp'); } catch { return null; } })() : null
+});
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1280,
@@ -313,6 +368,13 @@ function createWindow() {
   });
   win.loadFile(path.join(__dirname, 'src', 'renderer', 'index.html'));
   win.once('ready-to-show', () => win.show());
+  // Close hides to the tray unless the person turned that off, or unless the
+  // app is genuinely quitting - Quit in the tray menu, or the OS asking.
+  win.on('close', (event) => {
+    if (quitting || loadState().closeToTray === false || !ensureTray()) return;
+    event.preventDefault();
+    win.hide();
+  });
   win.on('closed', () => {
     win = null;
     // The overlay bridge holds an offscreen window, so the window list is
@@ -341,12 +403,9 @@ const singleInstance = typeof app.requestSingleInstanceLock === 'function'
 if (!singleInstance) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
-    if (!win || win.isDestroyed()) return;
-    if (win.isMinimized()) win.restore();
-    win.show();
-    win.focus();
-  });
+  // Opening the app again raises the window - including when it is in the tray
+  // rather than merely minimised.
+  app.on('second-instance', showWindow);
 }
 
 
@@ -376,6 +435,9 @@ app.whenReady().then(async () => {
   // context by the tests, where src modules are stubbed and cannot be called.
   require('./src/overlay-ipc')({ app, ipcMain, dialog, shell, window: () => win, bridge: () => overlayBridge });
   createWindow();
+  // The icon is there from launch, not only after the first close - somebody
+  // who wants the app parked in the tray wants to see that it is.
+  if (loadState().closeToTray !== false) ensureTray();
   startNotices();
   try {
     overlayBridge = await require('./src/overlay-bridge')({ BrowserWindow, userData: app.getPath('userData') });
@@ -403,6 +465,13 @@ ipcMain.handle('boot', () => {
   };
   return {
     version: require('./package.json').version,
+    // Said at launch rather than at the moment somebody presses Install. The
+    // app used to look completely healthy right up until it could not work.
+    payloadMissing: (() => {
+      // Never let a probe stop the app opening: a launch that fails because it
+      // could not check its own files is worse than the missing files.
+      try { return payload() ? null : payloadMissing().message; } catch { return null; }
+    })(),
     theme: state.theme || 'light',
     lang: state.lang || 'en',
     groupGamesByStore: state.groupGamesByStore !== false,
@@ -509,7 +578,8 @@ ipcMain.handle('settings', () => {
     excludedRoots: state.excludedRoots || [],
     hidden: [...(state.hidden || [])],
     autoScanDrives: state.autoScanDrives === true,
-    groupGamesByStore: state.groupGamesByStore !== false
+    groupGamesByStore: state.groupGamesByStore !== false,
+    closeToTray: state.closeToTray !== false
   };
 });
 
@@ -719,6 +789,25 @@ ipcMain.handle('community-prefill', async (_event, dir) => {
       os: `${process.platform} ${os.release()}`, app: app.getVersion()
     } };
   });
+});
+
+ipcMain.handle('set-close-to-tray', (_event, enabled) => {
+  const state = loadState();
+  state.closeToTray = enabled === true;
+  saveState(state);
+  if (state.closeToTray) ensureTray();
+  // Turning it off leaves the icon alone: the window is open, and taking the
+  // tray away under a menu somebody may have just opened is worse than a
+  // harmless icon that does the same two things.
+  return state.closeToTray;
+});
+
+ipcMain.handle('set-tray-labels', (_event, labels) => {
+  if (labels && typeof labels.show === 'string' && typeof labels.quit === 'string') {
+    trayLabels = { show: labels.show, quit: labels.quit };
+    buildTrayMenu();
+  }
+  return true;
 });
 
 ipcMain.handle('set-group-games-by-store', (_event, enabled) => {
@@ -1011,6 +1100,75 @@ ipcMain.handle('window', (_event, action) => {
   else if (action === 'maximize') win.isMaximized() ? win.unmaximize() : win.maximize();
 });
 
+// #229, #258, #104: the driver warning was a line in the install log, and
+// every line after it said "added" and "done". Three people spent days on a
+// driver the app had already named. It is a question now - answered once per
+// driver version, never a block: the install is still theirs to make.
+ipcMain.handle('driver-neural-fault', async () => {
+  const rows = await guards.gpuInfo();
+  if (!rows || !guards.driverNeuralFault(rows)) return { fault: false };
+  const names = guards.driverNames(rows);
+  const state = loadState();
+  return { fault: true, names, acknowledged: (state.driverAcknowledged || []).includes(names) };
+});
+
+ipcMain.handle('acknowledge-driver', (_event, names) => {
+  if (typeof names !== 'string' || !names) return false;
+  const state = loadState();
+  const seen = state.driverAcknowledged || [];
+  // Keyed by the exact adapter-and-version string, so a driver change asks
+  // again and a reinstall of the same one does not.
+  if (!seen.includes(names)) { state.driverAcknowledged = [...seen, names].slice(-8); saveState(state); }
+  return true;
+});
+
+// Which OptiScaler build a game uses, and the ones it may choose between. Only
+// names from the pinned list are accepted - the folder is still hash-verified
+// and still puts back anything swapped into it by hand (#191).
+ipcMain.handle('optiscaler-builds', (_event, dir) => ({
+  builds: optiscaler.RELEASES.map((r) => r.version),
+  current: (loadState().optiscalerVersion || {})[path.resolve(String(dir || '')).toLowerCase()] || optiscaler.RELEASE.version
+}));
+
+ipcMain.handle('set-optiscaler-build', (_event, dir, version) => {
+  if (typeof dir !== 'string' || !dir) return null;
+  const state = loadState();
+  const key = path.resolve(dir).toLowerCase();
+  const chosen = optiscaler.releaseFor(version).version;
+  const map = { ...(state.optiscalerVersion || {}) };
+  if (chosen === optiscaler.RELEASE.version) delete map[key]; else map[key] = chosen;
+  state.optiscalerVersion = map;
+  saveState(state);
+  return chosen;
+});
+
+// Whether this game uses the multipass consumer, and whether this build even
+// carries it - a payload assembled without the file simply does not offer it.
+ipcMain.handle('multipass-state', (_event, dir) => {
+  const file = payload()?.source?.feeder?.multipassAddon;
+  // Held back deliberately. The Feeder is the only route that installs a
+  // neural consumer, and it recognises exactly three names - the glob is
+  // `renodx-dlss5*.addon64`, plus deep-fried-chicken and alexs-toolkit. The
+  // DLSS Tool ships as `renodx-dlss.addon64`, without the 5, so the Feeder
+  // would load it and then report no consumer at all. Offering the choice here
+  // would only produce broken installs; it belongs as its own route, which
+  // does not use the Feeder. #251.
+  const available = false && Boolean(file) && fs.existsSync(file);
+  const key = path.resolve(String(dir || '')).toLowerCase();
+  return { available, on: (loadState().multipassGames || []).includes(key) };
+});
+
+ipcMain.handle('set-multipass', (_event, dir, on) => {
+  if (typeof dir !== 'string' || !dir) return false;
+  const state = loadState();
+  const key = path.resolve(dir).toLowerCase();
+  const list = (state.multipassGames || []).filter((g) => g !== key);
+  if (on === true) list.push(key);
+  state.multipassGames = list;
+  saveState(state);
+  return on === true;
+});
+
 ipcMain.handle('addons', () => addonLibrary());
 
 // Switching one on leaves the others alone. The single exception is a build
@@ -1277,6 +1435,15 @@ ipcMain.handle('update-check', async () => {
 ipcMain.handle('details', async (_event, dir) => {
   const detailsPayload = payload();
   const scan = await scanGame(dir);
+  // Opening a game is a chance to undo the read-only ReShade.ini an install
+  // from before 2.2.2 left behind - the banner on #155 outlives an app update
+  // because only an install used to clear it.
+  if (scan.chosen) {
+    try {
+      const cleared = await makeReShadeConfigWritable(path.dirname(scan.chosen.path));
+      if (cleared.length) console.log('Cleared read-only:', cleared.join(', '), 'in', dir);
+    } catch { /* a game folder we cannot touch is not a reason to fail here */ }
+  }
   const state = loadState();
   const hasNativeDlss = installRoutes.nativeDlssPresent(scan);
   const files = [...scan.dlssFiles, ...scan.streamlineFiles]
@@ -1349,7 +1516,7 @@ async function exclusiveMutation(work) {
 
 ipcMain.handle('install', (event, dir, exePath, requestedRoute, requestedApi) => exclusiveMutation(async () => {
   const p = payload();
-  if (!p) return { ok: false, message: 'No payload found - run "npm run payload" in app/' };
+  if (!p) return { ok: false, ...payloadMissing() };
   const scan = await scanGame(dir);
   if (!scan.chosen) return { ok: false, message: 'No game executable found' };
 
@@ -1433,9 +1600,14 @@ ipcMain.handle('install', (event, dir, exePath, requestedRoute, requestedApi) =>
     const missing = missingVCRuntime(64, path.dirname(target.path), process.env.SystemRoot, ['msvcp140_atomic_wait.dll']);
     if (missing.length) return { ok: false, code: 'runtimeRequiredHint', message: missing.join(', ') };
     send({ code: 'optiDownloading', params: {} });
-    try { optiRoot = await optiscaler.ensureOptiScaler(app.getPath('userData')); }
+    // A game may name an older pinned build. #238: No Man's Sky runs on
+    // 0.1.1.5 and crashes on 0.2.0-patch1, and until now the only way back was
+    // to keep an old copy of the whole app.
+    const wanted = (loadState().optiscalerVersion || {})[path.resolve(dir).toLowerCase()];
+    const release = optiscaler.releaseFor(wanted);
+    try { optiRoot = await optiscaler.ensureOptiScaler(app.getPath('userData'), release.version); }
     catch (err) { return { ok: false, code: componentCode(err, 'errOptiDownload'), message: err.message }; }
-    send({ code: 'optiVerified', params: { version: optiscaler.RELEASE.version } });
+    send({ code: 'optiVerified', params: { version: release.version } });
   }
 
   // Check before restoring or touching the game: these DLLs are imported by
@@ -1507,6 +1679,11 @@ ipcMain.handle('install', (event, dir, exePath, requestedRoute, requestedApi) =>
       gameOverlay.replaceOutdated(overlayLibrary(), path.dirname(target.path));
       if (gameOverlay.routes(target).includes(route)) {
         overlayPlan = gameOverlay.prepare({ library: overlayLibrary(), target, route });
+      } else {
+        // Never silently. A route or an API the panel cannot ride on produced
+        // an install with no overlay file and no line saying why, which is
+        // indistinguishable from a bug.
+        send({ code: 'overlaySkipped', params: { error: `the panel does not attach on ${route}/${target.apiLabel || target.api}` } });
       }
     } catch (error) {
       // DLSS is the job; the overlay rides along. A missing or conflicting
@@ -1528,6 +1705,10 @@ ipcMain.handle('install', (event, dir, exePath, requestedRoute, requestedApi) =>
       apiLabel: target.apiLabel,
       bitness: target.bitness,
       route,
+      // #251: the multipass consumer, chosen per game and remembered. It
+      // replaces the ordinary one, so it is a property of the install rather
+      // than an add-on somebody drops in beside it.
+      multipass: (loadState().multipassGames || []).includes(path.resolve(dir).toLowerCase()),
       antiCheatAcknowledged,
       emulator: target.emulator,
       source: p.source,

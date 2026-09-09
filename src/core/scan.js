@@ -105,6 +105,9 @@ const API_MARKERS = [
   // is one such layout, so those exports are authoritative D3D12 evidence too.
   'D3D12CreateDevice', 'D3D12SDKPath', 'D3D12SDKVersion',
   'D3D11CreateDevice', 'D3D10CreateDevice',
+  // DirectDraw's two entry points. Without them a Genesis emulator reads as
+  // having no 3D in it at all (#150).
+  'DirectDrawCreateEx', 'DirectDrawCreate',
   'Direct3DCreate9', 'Direct3DCreate8', 'CreateDXGIFactory', 'vkCreateInstance', 'wglCreateContext'
 ];
 
@@ -127,7 +130,8 @@ const WRAPPED_BY_API = {
   dxgi: ['d3d12.dll', 'd3d11.dll', 'dxgi.dll'],
   d3d10: ['d3d10.dll', 'd3d10_1.dll'],
   d3d9: ['d3d9.dll'],
-  d3d8: ['d3d8.dll']
+  d3d8: ['d3d8.dll'],
+  ddraw: ['ddraw.dll']
 };
 function vulkanWrapperBeside(file, api, bitness) {
   const dir = path.dirname(file);
@@ -146,6 +150,10 @@ function apiFromNames(imports) {
   if (has('vulkan-1.dll')) return { api: 'vulkan', label: 'Vulkan' };
   if (has('d3d9.dll')) return { api: 'd3d9', label: 'DirectX 9' };
   if (has('d3d8.dll')) return { api: 'd3d8', label: 'DirectX 8' };
+  // DirectDraw. dgVoodoo translates it the same way it does DX8 and DX9, and
+  // it is what the Genesis and other pre-Direct3D emulators draw through -
+  // reported as "No 3D executable found" on #150, because nothing looked.
+  if (has('ddraw.dll')) return { api: 'ddraw', label: 'DirectDraw' };
   if (has('opengl32.dll')) return { api: 'opengl', label: 'OpenGL' };
   return null;
 }
@@ -160,6 +168,7 @@ function apiFromMarkers(file) {
   if (markers.has('CreateDXGIFactory')) return { api: 'dxgi', label: 'DirectX (DXGI)' };
   if (markers.has('Direct3DCreate9')) return { api: 'd3d9', label: 'DirectX 9' };
   if (markers.has('Direct3DCreate8')) return { api: 'd3d8', label: 'DirectX 8' };
+  if (markers.has('DirectDrawCreateEx') || markers.has('DirectDrawCreate')) return { api: 'ddraw', label: 'DirectDraw' };
   if (markers.has('vkCreateInstance')) return { api: 'vulkan', label: 'Vulkan' };
   if (markers.has('wglCreateContext')) return { api: 'opengl', label: 'OpenGL' };
   return null;
@@ -226,6 +235,7 @@ function apiFromFileName(file) {
   if (/(?:^|[_-])(?:d3d|dx)10(?:[_-]|\.|$)/.test(name)) return { api: 'd3d10', label: 'DirectX 10' };
   if (/(?:^|[_-])(?:d3d|dx)9(?:[_-]|\.|$)/.test(name)) return { api: 'd3d9', label: 'DirectX 9' };
   if (/(?:^|[_-])(?:d3d|dx)8(?:[_-]|\.|$)/.test(name)) return { api: 'd3d8', label: 'DirectX 8' };
+  if (/(?:^|[_-])ddraw(?:[_-]|\.|$)/.test(name)) return { api: 'ddraw', label: 'DirectDraw' };
   if (/(?:^|[_-])vulkan(?:[_-]|\.|$)/.test(name)) return { api: 'vulkan', label: 'Vulkan' };
   if (/(?:^|[_-])(?:ogl|opengl)(?:[_-]|\.|$)/.test(name)) return { api: 'opengl', label: 'OpenGL' };
   return null;
@@ -319,7 +329,18 @@ function detectEngineApi(file) {
     'killingfloor.exe': ['D3D9Drv.dll', 'D3DDrv.dll', 'OpenGLDrv.dll'],
     'farcry5.exe': ['FC_m64.dll'],
     'watch_dogs.exe': ['Disrupt_b64.dll'],
-    'kingdomcome.exe': ['WHGame.dll']
+    'kingdomcome.exe': ['WHGame.dll'],
+    // X-Ray picks its renderer at startup and loads it with LoadLibrary, so
+    // xrEngine.exe imports no Direct3D and reads as having no 3D in it at all.
+    // R1 is DX8/9 fixed-function, R2 DX9, R3 DX10, R4 DX11 - whichever is
+    // present answers. Reported as "No 3D executable found" on #232.
+    'xrengine.exe': ['xrRender_R4.dll', 'xrRender_R3.dll', 'xrRender_R2.dll', 'xrRender_R1.dll'],
+    // Source games each ship their own executable name. shaderapidx9.dll is
+    // the engine's renderer and its filename is specific enough to be
+    // evidence; Portal 2 is the one on #217.
+    'portal2.exe': ['bin/shaderapidx9.dll', 'bin/x64/shaderapidx9.dll'],
+    'csgo.exe': ['bin/shaderapidx9.dll'],
+    'garrysmod.exe': ['bin/shaderapidx9.dll', 'bin/win64/shaderapidx9.dll']
   }[path.basename(file).toLowerCase()];
   if (!modules) return null;
   const bitness = pe.getBitness(file);
@@ -332,6 +353,27 @@ function detectEngineApi(file) {
     if (!module || pe.getBitness(module) !== bitness) continue;
     const api = apiFromNames(pe.getImports(module)) || apiFromMarkers(module);
     if (api) return { ...api, via: 'engine-module:' + rel };
+  }
+  return null;
+}
+
+// The graphics evidence a game keeps in one of its own libraries rather than
+// in the executable. Bounded hard: this runs only when a scan already found
+// nothing, and it must not turn that into a long walk.
+function rendererModule(gameDir, budget = 60) {
+  const queue = [[gameDir, 0]];
+  while (queue.length && budget > 0) {
+    const [dir, depth] = queue.shift();
+    let entries = [];
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { continue; }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) { if (depth < 3) queue.push([full, depth + 1]); continue; }
+      if (!/\.dll$/i.test(entry.name) || budget-- <= 0) continue;
+      try {
+        if (apiFromNames(pe.getImports(full)) || apiFromMarkers(full)) return entry.name;
+      } catch { /* an unreadable module is not evidence */ }
+    }
   }
   return null;
 }
@@ -539,7 +581,12 @@ async function scanGame(gameDir) {
     if (xboxDeclared.length || /(?:^|[\\/])windowsapps(?:[\\/]|$)/i.test(path.resolve(gameDir))) emptyReason = 'xbox-protected';
     else if (looksPacked) emptyReason = 'installer';
     else if (!top.some((f) => f.endsWith('.exe'))) emptyReason = 'no-exe';
-    else emptyReason = 'no-graphics-exe';
+    // "No 3D executable" was true and useless: it came out both for a folder
+    // with no game in it and for X-Ray, Source and Source 2, whose executables
+    // load a renderer with LoadLibrary and so import no Direct3D themselves
+    // (#232, #199, #150). Those two need different answers, and the game's own
+    // DLLs say which one this is.
+    else emptyReason = rendererModule(gameDir) ? 'renderer-in-dll' : 'no-graphics-exe';
   }
   let install = null;
   const activeManifest = path.join(gameDir, '_DLSS5_Backup', 'manifest.json');
@@ -626,6 +673,9 @@ function scanSource(sourceDir) {
     feedShader: path.join(feederDir, 'reshade-shaders', 'Shaders', 'DLSS5_Feed.fx'),
     shaderRoot: path.join(feederDir, 'reshade-shaders'),
     hostAddon: path.join(feederDir, 'host64', 'renodx-dlss5.addon64'),
+    // ShortFuse's DLSS Tool build, carrying the multipass control (#251).
+    // Optional: a payload built without it simply does not offer the route.
+    multipassAddon: path.join(feederDir, 'host64', 'renodx-dlss.addon64'),
     dgVoodooDir: path.join(feederDir, 'dgvoodoo'),
     vulkanLayerDir: path.join(sourceDir, 'reshade-vulkan'),
     // Feeder's interop layer, one folder per architecture, copied beside a
